@@ -18,6 +18,6 @@ async def stream(websocket: WebSocket):
         while True:
             message = await websocket.receive_text()
             for chunk in llm.stream_chat(message):
-                await websocket.send_json(chunk)
+                await websocket.send_text(chunk)
     except WebSocketDisconnect:
         pass

@@ -58,7 +58,7 @@ The server hosts three core capabilities in a single unified process:
 
 3. **Built-in Retrieval-Augmented Generation (RAG) with ChromaDB**:
    - Chunks and indexes documents on disk with persistent vector storage (`POST /rag/ingest`).
-   - Supports multi-tenant metadata filtering by user identifier.
+   - Supports multi-tenant metadata filtering by chat identifier (`chat_id`).
    - Retrieves top matching context and synthesizes grounded answers with citations (`POST /rag/response`).
 
 ---
@@ -72,7 +72,7 @@ Building production-ready AI applications often forces compromises between expen
 - **100% On-Device Privacy & Data Sovereignty**: Operates entirely offline with zero external network requests during inference. Ideal for sensitive, proprietary, or regulated data (e.g., HIPAA, GDPR, air-gapped environments).
 - **Fast CPU Inference via Speculative Decoding**: Utilizes LiteRT-LM's multi-token prediction (MTP) drafting and adaptive speculative decoding (`SpeculativeDecodingMode.ADAPTIVE`) for rapid token delivery on standard CPU environments.
 - **Integrated Persistent Vector Database**: Embeds ChromaDB directly into the service process for zero-configuration persistent storage under `./data/chroma`.
-- **Multi-Tenant User Isolation**: Ingests and queries document collections filtered by user ID (`where={"user": user}`), enabling isolated workspaces across clients.
+- **Multi-Tenant Chat Isolation**: Ingests and queries document collections filtered by chat ID (`where={"chat_id": chat_id}`), enabling isolated workspaces across clients.
 - **Bi-Directional WebSocket Streaming**: Emits tokens in real-time as they are decoded, eliminating perceived latency for conversational interfaces.
 - **Asynchronous Lifespan Management**: Manages engine resources with FastAPI lifespan handlers, guaranteeing clean startup, model caching, and graceful shutdown.
 
@@ -322,13 +322,13 @@ The server includes a complete end-to-end RAG system with automatic text chunkin
 
 #### Step 1: Ingest Document Content
 
-Ingest raw text associated with a specific user:
+Ingest raw text associated with a specific chat session:
 
 ```bash
 curl -X POST http://localhost:3500/rag/ingest \
   -H "Content-Type: application/json" \
   -d '{
-    "user": "alice",
+    "chat_id": "session_123",
     "message": "Antigravity is Google DeepMind's agentic engineering platform. It supports autonomous coding swarms, task scheduling, and customized developer tools."
   }'
 ```
@@ -345,13 +345,13 @@ curl -X POST http://localhost:3500/rag/ingest \
 
 #### Step 2: Query with Contextual Answer Generation
 
-Ask a question filtered to that user's knowledge base:
+Ask a question filtered to that chat session's knowledge base:
 
 ```bash
 curl -X POST http://localhost:3500/rag/response \
   -H "Content-Type: application/json" \
   -d '{
-    "user": "alice",
+    "chat_id": "session_123",
     "message": "What is Antigravity?"
   }'
 ```
