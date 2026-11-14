@@ -5,16 +5,16 @@
 [![LiteRT-LM](https://img.shields.io/badge/LiteRT--LM-0.19.1-orange.svg)](https://github.com/google-ai-edge/litert)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A high-performance, lightweight local AI inference and embedding server built with **FastAPI** and Google's **LiteRT-LM** engine. Designed specifically for low-latency Retrieval-Augmented Generation (RAG) pipelines, on-device reasoning, and interactive chat experiences.
+A high-performance, lightweight local AI inference and embedding server built with **FastAPI** and Google's **LiteRT-LM** runtime. Designed specifically for low-latency Retrieval-Augmented Generation (RAG) pipelines, on-device reasoning, and interactive chat streaming.
 
 ---
 
 ## Table of Contents
 
 - [What the Project Does](#what-the-project-does)
-- [Why It Is Useful](#why-it-is-useful)
+- [Why the Project Is Useful](#why-the-project-is-useful)
 - [Project Architecture](#project-architecture)
-- [How to Get Started](#how-to-get-started)
+- [How Users Can Get Started](#how-users-can-get-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Model Preparation](#model-preparation)
@@ -25,30 +25,32 @@ A high-performance, lightweight local AI inference and embedding server built wi
   - [3. Real-Time Streaming Chat (WebSocket)](#3-real-time-streaming-chat-websocket)
   - [4. Text Embeddings](#4-text-embeddings)
 - [Configuration](#configuration)
-- [Where to Get Help](#where-to-get-help)
-- [Maintainers & Contributing](#who-maintains-and-contributes)
+- [Where Users Can Get Help](#where-users-can-get-help)
+- [Who Maintains and Contributes](#who-maintains-and-contributes)
+  - [Maintainer](#maintainer)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ---
 
 ## What the Project Does
 
-The **Gemma RAG AI Server** provides an OpenAI-alternative local backend serving Google Gemma models directly on your hardware. It handles both:
+The **Gemma RAG AI Server** provides a self-hosted, private backend serving Google Gemma models directly on local hardware without cloud API dependencies. It delivers two foundational capabilities:
 
-1. **Instruction & Reasoning Inference**: Executes chat queries using the `gemma-4-E2B-it` model with adaptive speculative decoding and native chain-of-thought (thinking) outputs.
-2. **Dense Vector Embeddings**: Generates embeddings using the `embeddinggemma-2-740m` model for vector search, document indexing, and semantic similarity matching in RAG systems.
+1. **Instruction & Reasoning Inference**: Executes chat queries using the `gemma-4-E2B-it` model with adaptive speculative decoding.
+2. **Dense Vector Embeddings**: Generates semantic embeddings using the `embeddinggemma-2-740m` model for vector search, document indexing, and similarity retrieval in RAG systems.
 
-All endpoints are exposed over high-performance HTTP and WebSocket protocols powered by FastAPI and Uvicorn.
+All endpoints are exposed over asynchronous HTTP and WebSocket protocols powered by FastAPI and Uvicorn.
 
 ---
 
-## Why It Is Useful
+## Why the Project Is Useful
 
-- **100% Local & Private**: All inference and embeddings run locally without sending data to third-party cloud APIs.
-- **Speculative Decoding Acceleration**: Configured with LiteRT-LM's adaptive speculative decoding for significant speedups in token generation latency.
-- **Native Chain-of-Thought ("Thinking") Support**: Separates internal reasoning (`thought` channel) from user-facing responses, enabling structured introspection and explainability.
-- **Real-Time Token Streaming**: Built-in WebSocket streaming transmits both thinking chunks and response tokens as they are produced.
-- **Ready for RAG**: Houses both the generative LLM and the embedding model under one unified, efficient server process.
-- **Resource Efficient**: Uses LiteRT-LM compiled models with XNNPack kernel caching for maximum CPU/edge throughput.
+- **100% Local & Private**: All inference and embeddings run entirely on-device, ensuring zero data leakage and complete data sovereignty.
+- **Speculative Decoding Acceleration**: Configured with LiteRT-LM's adaptive speculative decoding for lower latency token generation.
+- **Real-Time Token Streaming**: Built-in WebSocket streaming emits response tokens as they are generated.
+- **Unified RAG Stack**: Serves generative language models and dense embedding models from a single lightweight runtime process.
+- **Hardware-Optimized Throughput**: Utilizes compiled LiteRT-LM binaries with automated XNNPack kernel caching for efficient CPU and edge execution.
 
 ---
 
@@ -56,36 +58,37 @@ All endpoints are exposed over high-performance HTTP and WebSocket protocols pow
 
 ```text
 ai-server/
-├── main.py                     # Server entrypoint and FastAPI lifespan management
-├── requirements.txt            # Python dependencies
-├── models/                     # LiteRT-LM binary models and XNNPack caches
+├── main.py                          # Server entrypoint and FastAPI lifespan management
+├── requirements.txt                 # Project dependencies
+├── models/                          # LiteRT-LM model binaries and XNNPack caches
 │   ├── gemma-4-E2B-it.litertlm
 │   └── embeddinggemma-2-740m.litertlm
-├── routes/                     # API routes and controllers
-│   ├── __init__.py             # Main router registry
+├── routes/                          # API endpoints and route definitions
+│   ├── __init__.py                  # Central API router aggregator
 │   ├── chat/
-│   │   └── chat_routes.py      # POST /chat/response & WebSocket /chat/stream
+│   │   └── chat_routes.py           # POST /chat/response & WebSocket /chat/stream
 │   ├── embedding/
-│   │   └── embedding_routes.py # POST /embedding/create
+│   │   └── embedding_routes.py      # POST /embedding/create
 │   └── health/
-│       └── health_routes.py    # GET /health
+│       └── health_routes.py         # GET /health/
 ├── schema/
-│   ├── __init__.py
-│   └── schemas.py              # Pydantic request models
+│   ├── __init__.py                  # Schema exports
+│   └── schemas.py                   # Pydantic request & validation models
 └── services/
-    ├── __init__.py
-    └── llm.py                  # LiteRT-LM engine lifecycle, chat, & embeddings
+    ├── __init__.py                  # Service package interface
+    └── llm/
+        └── llm_service.py           # LiteRT-LM engine lifecycle, chat, & embeddings
 ```
 
 ---
 
-## How to Get Started
+## How Users Can Get Started
 
 ### Prerequisites
 
-- **Python**: Version 3.10 or later (tested on 3.10–3.15)
-- **C/C++ Build Environment**: Required for LiteRT / XNNPack dependencies on Linux
-- **RAM/Storage**: At least 8 GB RAM and 10 GB free disk space for model weights
+- **Python**: Version 3.10 or later
+- **Operating System**: Linux (recommended) or macOS / Windows with C/C++ runtime support
+- **Hardware**: At least 8 GB RAM and 10 GB free disk space for model weights
 
 ### Installation
 
@@ -112,28 +115,33 @@ ai-server/
 
 ### Model Preparation
 
-Ensure your LiteRT-LM model files are placed in the `models/` directory:
+Place your pre-compiled LiteRT-LM model weights in the `models/` directory:
 
-- `models/gemma-4-E2B-it.litertlm`: Gemma instruct model for conversational inference.
-- `models/embeddinggemma-2-740m.litertlm`: Gemma embedding model for vector computation.
+```bash
+mkdir -p models
+```
 
-> **Note**: Model files and XNNPack caches (`*.xnnpack_cache`) are excluded from version control via `.gitignore`.
+Copy the required model files into `models/`:
+- `models/gemma-4-E2B-it.litertlm`: Conversational instruction-tuned model.
+- `models/embeddinggemma-2-740m.litertlm`: Text embedding model.
+
+> **Note**: Large model binaries and auto-generated XNNPack cache files (`*.xnnpack_cache`) are ignored by Git via `.gitignore`.
 
 ### Running the Server
 
-Start the application with Uvicorn:
+Start the application with Python:
 
 ```bash
 python main.py
 ```
 
-Or run directly with Uvicorn CLI:
+Or run via the Uvicorn CLI directly:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 3500 --reload
 ```
 
-The server binds to `http://0.0.0.0:3500`. Interactive OpenAPI documentation will be accessible at:
+The server listens on `http://0.0.0.0:3500`. Interactive OpenAPI documentation is accessible at:
 - **Swagger UI**: `http://localhost:3500/docs`
 - **ReDoc**: `http://localhost:3500/redoc`
 
@@ -143,26 +151,27 @@ The server binds to `http://0.0.0.0:3500`. Interactive OpenAPI documentation wil
 
 ### 1. Health Check
 
-Verifies server status and availability.
+Verifies server availability and readiness.
 
-- **Endpoint**: `GET /health`
+- **Endpoint**: `GET /health/`
 - **Response**:
 
 ```json
 {
+  "status": 200,
   "message": "It's Working!"
 }
 ```
 
 ```bash
-curl -X GET http://localhost:3500/health
+curl -X GET http://localhost:3500/health/
 ```
 
 ---
 
 ### 2. Synchronous Chat Inference
 
-Generates an answer along with the internal chain-of-thought reasoning.
+Submits a prompt and returns the generated answer alongside internal chain-of-thought reasoning.
 
 - **Endpoint**: `POST /chat/response`
 - **Request Body**:
@@ -185,8 +194,8 @@ curl -X POST http://localhost:3500/chat/response \
 
 ```json
 {
-  "response": "The sky appears blue because of Rayleigh scattering...",
-  "thinking": "The user is asking about a basic physical phenomenon. Explain Rayleigh scattering concisely..."
+  "status": 200,
+  "message": "The sky appears blue because of Rayleigh scattering..."
 }
 ```
 
@@ -194,23 +203,19 @@ curl -X POST http://localhost:3500/chat/response \
 
 ### 3. Real-Time Streaming Chat (WebSocket)
 
-Streams tokens and thinking status incrementally over a WebSocket channel.
+Streams response tokens incrementally over a persistent WebSocket connection.
 
 - **Endpoint**: `ws://localhost:3500/chat/stream`
-- **Protocol**: Send plain text messages, receive JSON frames.
+- **Payload Protocol**: Send a plain-text prompt; receive streaming JSON message events.
 
-#### Event Formats
+#### Event Payloads
 
-- **Thinking step**:
-  ```json
-  {"type": "thinking", "content": "Analyzing input..."}
-  ```
 - **Response token**:
   ```json
   {"type": "response", "content": "Hello"}
   ```
 
-#### Python WebSocket Client Example
+#### Python Streaming Client Example
 
 ```python
 import asyncio
@@ -226,9 +231,7 @@ async def stream_chat():
             try:
                 message = await websocket.recv()
                 data = json.loads(message)
-                if data["type"] == "thinking":
-                    print(f"[Thinking] {data['content']}", end="", flush=True)
-                elif data["type"] == "response":
+                if data["type"] == "response":
                     print(data["content"], end="", flush=True)
             except websockets.exceptions.ConnectionClosed:
                 break
@@ -240,7 +243,7 @@ asyncio.run(stream_chat())
 
 ### 4. Text Embeddings
 
-Generates dense floating-point vector embeddings for input text.
+Generates dense floating-point vector representations for search queries or document chunks.
 
 - **Endpoint**: `POST /embedding/create`
 - **Request Body**:
@@ -263,11 +266,11 @@ curl -X POST http://localhost:3500/embedding/create \
 
 ```json
 {
-  "response": [
+  "status": 200,
+  "message": [
     0.0241,
     -0.0135,
-    0.0589,
-    ...
+    0.0589
   ]
 }
 ```
@@ -276,23 +279,22 @@ curl -X POST http://localhost:3500/embedding/create \
 
 ## Configuration
 
-Inference parameters can be adjusted in [`services/llm.py`](services/llm.py):
+Engine parameters and decoding settings can be configured in [`services/llm/llm_service.py`](services/llm/llm_service.py):
 
 | Parameter | Default | Location | Description |
 | :--- | :--- | :--- | :--- |
-| `enable_thinking` | `True` | `thinking_config` | Enables chain-of-thought generation |
-| `thinking_token_budget` | `200` | `thinking_config` | Maximum token allocation for thinking |
-| `max_output_tokens` | `600` | `create_conversation` | Cap on generated response tokens |
-| `mode` | `ADAPTIVE` | `speculative_config` | Speculative decoding optimization mode |
-| `port` | `3500` | `main.py` | Port on which the API server listens |
+| `max_output_tokens` | `600` | `create_conversation` | Maximum output token limit per completion |
+| `mode` | `ADAPTIVE` | `speculative_config` | LiteRT-LM speculative decoding mode |
+| `port` | `3500` | `main.py` | Network port for the FastAPI server |
 
 ---
 
-## Where to Get Help
+## Where Users Can Get Help
 
-- **Issues & Bug Reports**: Submit an issue on the [GitHub Issues](https://github.com/masanthimanshu/gemma-rag/issues) tracker.
-- **FastAPI Documentation**: Consult the [FastAPI Official Docs](https://fastapi.tiangolo.com/) for questions on routing and deployment.
-- **LiteRT Framework**: Learn more about model compilation and runtime optimizations at [Google LiteRT](https://github.com/google-ai-edge/litert).
+- **Issue Tracker**: Submit bug reports and feature requests via [GitHub Issues](https://github.com/masanthimanshu/gemma-rag/issues).
+- **Interactive Documentation**: Explore OpenAPI documentation directly on a running server at `http://localhost:3500/docs`.
+- **FastAPI Documentation**: Consult the [FastAPI Official Documentation](https://fastapi.tiangolo.com/) for routing and deployment guidance.
+- **Google LiteRT**: Learn more about on-device AI runtime optimization at [Google LiteRT](https://github.com/google-ai-edge/litert).
 
 ---
 
@@ -304,10 +306,14 @@ Inference parameters can be adjusted in [`services/llm.py`](services/llm.py):
 
 ### Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, feedback, and pull requests are welcome:
 
 1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+2. Create your feature branch (`git checkout -b feature/amazing-feature`).
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`).
-4. Push to your branch (`git push origin feature/amazing-feature`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
 5. Open a Pull Request.
+
+### License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

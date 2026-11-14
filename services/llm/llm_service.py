@@ -3,11 +3,6 @@ import litert_lm
 llm_engine = None
 embedding_engine = None
 
-thinking_config = litert_lm.ThinkingConfig(
-    enable_thinking=True,
-    thinking_token_budget=200,
-)
-
 speculative_config = litert_lm.SpeculativeDecodingConfig(
     mode=litert_lm.SpeculativeDecodingMode.ADAPTIVE,
 )
@@ -43,27 +38,16 @@ def close_engine():
 def chat(message: str):
     init_engine()
 
-    with llm_engine.create_conversation(
-        thinking_config=thinking_config,
-        max_output_tokens=600,
-    ) as conversation:
+    with llm_engine.create_conversation(max_output_tokens=600) as conversation:
         response = conversation.send_message(message)
-        return {
-            "response": str(response),
-            "thinking": response.channels.get("thought"),
-        }
+        return {"message": str(response)}
 
 
 def stream_chat(message: str):
     init_engine()
 
-    with llm_engine.create_conversation(
-        thinking_config=thinking_config,
-        max_output_tokens=600,
-    ) as conversation:
+    with llm_engine.create_conversation(max_output_tokens=600) as conversation:
         for chunk in conversation.send_message_async(message):
-            if thought := chunk.channels.get("thought"):
-                yield {"type": "thinking", "content": thought}
             if text := str(chunk):
                 yield {"type": "response", "content": text}
 

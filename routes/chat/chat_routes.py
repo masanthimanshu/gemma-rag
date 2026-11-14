@@ -1,12 +1,12 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from schema import ChatRequest
+from schema import ChatRequest, ResponseModel
 from services import llm
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
-@router.post("/response")
+@router.post("/response", response_model=ResponseModel)
 def chat(request: ChatRequest):
     return llm.chat(request.message)
 
