@@ -1,4 +1,3 @@
-from .schemas import ChatRequest, ResponseModel
+from .schemas import ChatRequest, RagRequest, ResponseModel
 
-
-__all__ = ["ChatRequest", "ResponseModel"]
+__all__ = ["ChatRequest", "RagRequest", "ResponseModel"]

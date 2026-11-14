@@ -46,3 +46,4 @@ Thank you for your interest in contributing to the Gemma RAG AI Server! We welco
 2. Verify local execution with `uvicorn main:app --reload`.
 3. Push your branch to your fork and submit a Pull Request to `main`.
 4. Provide a clear description of the problem solved and any relevant context or reproduction steps.
+

@@ -3,11 +3,11 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.15-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.162%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![LiteRT-LM](https://img.shields.io/badge/LiteRT--LM-0.19.1-orange.svg)](https://github.com/google-ai-edge/litert)
-[![Uvicorn](https://img.shields.io/badge/Uvicorn-0.54%2B-2C5BB4.svg?logo=gunicorn&logoColor=white)](https://www.uvicorn.org/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5%2B-red.svg)](https://www.trychroma.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A high-performance, lightweight, self-hosted AI inference and embedding server built with **FastAPI** and Google's **LiteRT-LM** (LiteRT for Language Models) runtime. Specially engineered for low-latency Retrieval-Augmented Generation (RAG) pipelines, on-device reasoning, and interactive token-by-token WebSocket chat streaming.
+A high-performance, lightweight, self-hosted AI inference, embedding, and Retrieval-Augmented Generation (RAG) server built with **FastAPI**, Google's **LiteRT-LM** (LiteRT for Language Models) runtime, and **ChromaDB**. Designed for low-latency CPU and edge execution, complete data sovereignty, and real-time streaming chat.
 
 ---
 
@@ -15,32 +15,27 @@ A high-performance, lightweight, self-hosted AI inference and embedding server b
 
 - [What the Project Does](#what-the-project-does)
 - [Why the Project Is Useful](#why-the-project-is-useful)
-  - [Key Features & Highlights](#key-features--highlights)
-  - [Performance & Architectural Advantages](#performance--architectural-advantages)
-- [System Architecture](#system-architecture)
-  - [High-Level Dataflow](#high-level-dataflow)
-  - [Repository Layout](#repository-layout)
+  - [Key Features](#key-features)
+  - [Architectural Benefits](#architectural-benefits)
+- [Architecture Overview](#architecture-overview)
+  - [System Flow](#system-flow)
+  - [Project Structure](#project-structure)
 - [How Users Can Get Started](#how-users-can-get-started)
-  - [System Requirements](#system-requirements)
+  - [Prerequisites](#prerequisites)
   - [Installation](#installation)
-  - [Model Acquisition & Preparation](#model-acquisition--preparation)
+  - [Model Preparation](#model-preparation)
   - [Running the Server](#running-the-server)
-  - [Production Deployment (Systemd)](#production-deployment-systemd)
 - [Usage Examples](#usage-examples)
   - [1. Health Check](#1-health-check)
-  - [2. Synchronous Chat Completion](#2-synchronous-chat-completion)
+  - [2. Synchronous Chat](#2-synchronous-chat)
   - [3. Real-Time Streaming Chat (WebSocket)](#3-real-time-streaming-chat-websocket)
-    - [Python Streaming Client](#python-streaming-client)
-    - [Browser / JavaScript WebSocket Client](#browser--javascript-websocket-client)
-    - [Terminal Streaming with wscat](#terminal-streaming-with-wscat)
-  - [4. Dense Text Embeddings](#4-dense-text-embeddings)
-    - [Python RAG Similarity Example](#python-rag-similarity-example)
+  - [4. Vector Embeddings](#4-vector-embeddings)
+  - [5. RAG Document Ingestion & Query](#5-rag-document-ingestion--query)
   - [Interactive API Documentation](#interactive-api-documentation)
-- [RAG Integration Workflow](#rag-integration-workflow)
-- [Configuration Reference](#configuration-reference)
+- [Configuration](#configuration)
 - [Where Users Can Get Help](#where-users-can-get-help)
 - [Who Maintains and Contributes](#who-maintains-and-contributes)
-  - [Maintainer](#maintainer)
+  - [Maintainers](#maintainers)
   - [Contributing](#contributing)
   - [License](#license)
 
@@ -48,208 +43,181 @@ A high-performance, lightweight, self-hosted AI inference and embedding server b
 
 ## What the Project Does
 
-The **Gemma RAG AI Server** provides an air-gapped, zero-cloud-dependency API microservice serving Google's state-of-the-art Gemma models locally on CPU or edge hardware. 
+The **Gemma RAG AI Server** provides an air-gapped, zero-cloud-dependency API microservice serving Google's Gemma models locally on commodity CPU and edge hardware.
 
-The server simultaneously manages two dedicated machine learning engines within a single unified process:
+The server hosts three core capabilities in a single unified process:
 
-1. **Instruction & Generative Chat Engine (`gemma-4-E2B-it`)**:
-   - Executes instruction-tuned conversational inference and contextual question answering.
-   - Employs **adaptive speculative decoding** to dramatically accelerate token generation velocity.
-   - Delivers both synchronous batch answers (`POST /chat/response`) and low-latency streaming (`ws://.../chat/stream`).
+1. **Instruction & Conversational Inference (`gemma-4-E2B-it`)**:
+   - Executes instruction-tuned conversational turns and contextual reasoning.
+   - Leverages **adaptive speculative decoding** to maximize token generation velocity.
+   - Provides both standard batch responses (`POST /chat/response`) and low-latency token streaming (`ws://.../chat/stream`).
 
-2. **Dense Vector Embedding Engine (`embeddinggemma-2-740m`)**:
-   - Transforms natural language queries, document chunks, and passage texts into dense geometric vector embeddings.
-   - Serves as the vectorization backbone for local semantic search, retrieval indexing, and RAG knowledge bases (`POST /embedding/create`).
+2. **Dense Vector Embeddings (`embeddinggemma-2-740m`)**:
+   - Transforms queries and document passages into high-dimensional geometric vector embeddings (`POST /embedding/create`).
+   - Powers local similarity matching and semantic retrieval.
+
+3. **Built-in Retrieval-Augmented Generation (RAG) with ChromaDB**:
+   - Chunks and indexes documents on disk with persistent vector storage (`POST /rag/ingest`).
+   - Supports multi-tenant metadata filtering by user identifier.
+   - Retrieves top matching context and synthesizes grounded answers with citations (`POST /rag/response`).
 
 ---
 
 ## Why the Project Is Useful
 
-Building production-ready RAG applications often entails balancing expensive cloud LLM API costs, strict data privacy regulations, and unpredictable network latency. Gemma RAG AI Server solves this by delivering an optimized, completely self-hosted local stack.
+Building production-ready AI applications often forces compromises between expensive cloud API fees, stringent data privacy compliance, and unpredictable network latency. Gemma RAG AI Server eliminates these trade-offs by providing an all-in-one local solution.
 
-### Key Features & Highlights
+### Key Features
 
-- **100% On-Device Privacy & Data Sovereignty**: Operates entirely offline with zero telemetry or third-party API calls. Ideal for confidential documents, HIPAA/GDPR sensitive contexts, and air-gapped environments.
-- **Speculative Decoding Acceleration**: Configured with LiteRT-LM's multi-token prediction (MTP) drafting and adaptive speculative decoding mode (`ADAPTIVE`), reducing latency per token on CPU execution.
-- **Real-Time Token Streaming**: Built-in persistent WebSocket server emits generated tokens in real time with minimal per-chunk overhead.
-- **Unified Generative + Embedding Architecture**: Eliminates the operational complexity of running separate servers or Docker containers for generation versus embeddings.
-- **XNNPack Kernel Compilation & Persistent Cache**: Automatically compiles and persists optimized CPU instruction kernels on the first run (`.xnnpack_cache`), ensuring fast cold starts on subsequent boots.
-- **Async Lifespan Management**: Gracefully initializes LiteRT-LM runtime memory pools during application startup and cleanly deallocates model handles during shutdown.
+- **100% On-Device Privacy & Data Sovereignty**: Operates entirely offline with zero external network requests during inference. Ideal for sensitive, proprietary, or regulated data (e.g., HIPAA, GDPR, air-gapped environments).
+- **Fast CPU Inference via Speculative Decoding**: Utilizes LiteRT-LM's multi-token prediction (MTP) drafting and adaptive speculative decoding (`SpeculativeDecodingMode.ADAPTIVE`) for rapid token delivery on standard CPU environments.
+- **Integrated Persistent Vector Database**: Embeds ChromaDB directly into the service process for zero-configuration persistent storage under `./data/chroma`.
+- **Multi-Tenant User Isolation**: Ingests and queries document collections filtered by user ID (`where={"user": user}`), enabling isolated workspaces across clients.
+- **Bi-Directional WebSocket Streaming**: Emits tokens in real-time as they are decoded, eliminating perceived latency for conversational interfaces.
+- **Asynchronous Lifespan Management**: Manages engine resources with FastAPI lifespan handlers, guaranteeing clean startup, model caching, and graceful shutdown.
 
-### Performance & Architectural Advantages
+### Architectural Benefits
 
-| Feature | Gemma RAG AI Server | Cloud LLM APIs | Standard Python PyTorch Server |
-| :--- | :--- | :--- | :--- |
-| **Privacy / Telemetry** | 100% Local / Zero Egress | Data sent across internet | Local |
-| **Operational Cost** | \$0 recurring compute fees | Metered per 1k tokens | Hardware cost |
-| **Runtime Overhead** | Lightweight compiled C++ LiteRT | Network transit latency | Heavy Python/PyTorch memory footprint |
-| **Streaming Protocol** | Native WebSocket | Server-Sent Events (SSE) / HTTP | Custom / SSE |
-| **Token Acceleration** | Adaptive Speculative Decoding | Dependent on provider | Requires complex vLLM / TensorRT setup |
+| Capability | Gemma RAG AI Server | Cloud LLM APIs |
+| :--- | :--- | :--- |
+| **Data Privacy** | 100% Local / Zero telemetry | Data transmitted to third parties |
+| **Recurring Costs** | \$0 / Self-hosted | Per-token / monthly billing |
+| **Network Latency** | Sub-millisecond local loopback | Dependent on internet & cloud load |
+| **Offline Operation** | Fully supported | Impossible |
+| **All-in-One RAG** | Built-in Embeddings + Chroma + LLM | Multiple disparate microservices |
 
 ---
 
-## System Architecture
+## Architecture Overview
 
-### High-Level Dataflow
+### System Flow
 
 ```mermaid
 flowchart TD
-    Client["Client / Frontend / RAG Agent"]
-
-    subgraph Server["FastAPI Application (Port 3500)"]
-        Router["FastAPI Central Router"]
-        
-        HealthRoute["GET /health/"]
-        ChatSyncRoute["POST /chat/response"]
-        ChatStreamRoute["WS /chat/stream"]
-        EmbeddingRoute["POST /embedding/create"]
-        
-        Router --> HealthRoute
-        Router --> ChatSyncRoute
-        Router --> ChatStreamRoute
-        Router --> EmbeddingRoute
-        
-        subgraph EngineLayer["LiteRT-LM Engine Services (Singleton Lifecycle)"]
-            ChatEngine["Generative Engine\n(gemma-4-E2B-it.litertlm)\n+ Speculative Decoding Drafter"]
-            EmbedEngine["Embedding Engine\n(embeddinggemma-2-740m.litertlm)"]
-        end
-        
-        ChatSyncRoute --> ChatEngine
-        ChatStreamRoute --> ChatEngine
-        EmbeddingRoute --> EmbedEngine
+    Client["Client / Frontend"]
+    
+    subgraph FastAPI["FastAPI Application (Port 3500)"]
+        Router["API Router"]
+        ChatRoute["Chat Routes<br/>/chat/response & /chat/stream"]
+        EmbedRoute["Embedding Routes<br/>/embedding/create"]
+        RagRoute["RAG Routes<br/>/rag/ingest & /rag/response"]
     end
 
-    subgraph Hardware["Hardware Acceleration Layer"]
-        XNNPack["XNNPack Optimized Kernels (*.xnnpack_cache)"]
-        CPU["Host CPU / Edge Accelerator"]
-        EngineLayer --> XNNPack --> CPU
+    subgraph Services["Core Engine Services"]
+        LLM["LiteRT-LM Engine<br/>gemma-4-E2B-it"]
+        Embed["LiteRT-LM Embedding Engine<br/>embeddinggemma-2-740m"]
+        RAG["RAG Service<br/>Chunking & Context Synthesis"]
+        Chroma[("ChromaDB Persistent Store<br/>./data/chroma")]
     end
 
-    Client <-->|"JSON Request / Response"| Router
-    Client <-->|"Bidirectional WebSocket"| ChatStreamRoute
+    Client -->|HTTP / WebSocket| Router
+    Router --> ChatRoute
+    Router --> EmbedRoute
+    Router --> RagRoute
+
+    ChatRoute --> LLM
+    EmbedRoute --> Embed
+
+    RagRoute --> RAG
+    RAG -->|Generate Embeddings| Embed
+    RAG -->|Store & Query Chunks| Chroma
+    RAG -->|Context + Prompt| LLM
 ```
 
-### Repository Layout
+### Project Structure
 
 ```text
-ai-server/
-├── main.py                          # Server entrypoint, lifespan context, and Uvicorn runner
-├── requirements.txt                 # Pinned dependencies (FastAPI, LiteRT-LM, Uvicorn, etc.)
-├── models/                          # Model binaries and auto-generated XNNPack kernel caches
-│   ├── gemma-4-E2B-it.litertlm      # Generative conversational model
-│   └── embeddinggemma-2-740m.litertlm # Multimodal/text dense embedding model
-├── routes/                          # Modular API routing hierarchy
-│   ├── __init__.py                  # Aggregates sub-routers into api_router
+.
+├── data/
+│   └── chroma/                 # Local ChromaDB persistent vector storage
+├── models/
+│   ├── gemma-4-E2B-it.litertlm              # Generative chat model
+│   └── embeddinggemma-2-740m.litertlm      # Dense embedding model
+├── routes/
+│   ├── __init__.py             # Unified APIRouter aggregator
 │   ├── chat/
-│   │   └── chat_routes.py           # Sync chat endpoint & WebSocket streaming handler
+│   │   └── chat_routes.py      # HTTP & WebSocket chat endpoints
 │   ├── embedding/
-│   │   └── embedding_routes.py      # Vector embedding generation endpoint
-│   └── health/
-│       └── health_routes.py         # Service liveness check endpoint
-├── schema/                          # Data contracts and serialization schemas
-│   ├── __init__.py                  # Package exports
-│   └── schemas.py                   # Pydantic schemas (ChatRequest, ResponseModel)
-└── services/                        # Core service and engine orchestration
-    ├── __init__.py                  # Package interface exposing the llm service
-    └── llm/
-        └── llm_service.py           # LiteRT-LM engine lifecycle, streaming, & embeddings
+│   │   └── embedding_routes.py # Text embedding endpoint
+│   ├── health/
+│   │   └── health_routes.py    # Health check endpoint
+│   └── rag/
+│       └── rag_routes.py       # Ingestion and RAG question answering
+├── schema/
+│   ├── __init__.py
+│   └── schemas.py              # Pydantic request & response models
+├── services/
+│   ├── __init__.py
+│   ├── llm/
+│   │   └── llm_service.py      # LiteRT-LM initialization & inference
+│   └── rag/
+│       └── rag_service.py      # Text chunking, ChromaDB storage & search
+├── CONTRIBUTING.md             # Developer contribution guidelines
+├── LICENSE                     # MIT License terms
+├── main.py                     # Server entrypoint and lifespan manager
+└── requirements.txt            # Python dependencies
 ```
 
 ---
 
 ## How Users Can Get Started
 
-### System Requirements
+### Prerequisites
 
-- **Python**: Version 3.10 or later (compatible with Python 3.10 – 3.15)
-- **Operating System**: Linux (Ubuntu 20.04+, Amazon Linux 2023, Debian 11+), macOS (Apple Silicon or Intel), or Windows via WSL2
-- **Memory**: Minimum 8 GB RAM (16 GB RAM recommended for optimal throughput during concurrent generation and embedding)
-- **Storage**: At least 10 GB free disk space to store model binaries and compiled kernel cache files
+- **Python**: Version `3.10`, `3.11`, `3.12`, or `3.15`
+- **Operating System**: Linux (Ubuntu, Debian, Amazon Linux, RHEL), macOS, or Windows WSL2
+- **Memory**: Minimum 8 GB RAM (16 GB recommended for concurrent inference and embeddings)
+- **Disk Space**: ~10 GB free space for models, dependencies, and vector database
 
 ### Installation
 
-1. **Clone the repository:**
-
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/masanthimanshu/gemma-rag.git
    cd gemma-rag
    ```
 
-2. **Create and activate a virtual environment:**
-
+2. **Create and activate a virtual environment**:
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
    ```
 
-3. **Install dependencies:**
-
+3. **Install dependencies**:
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-### Model Acquisition & Preparation
+### Model Preparation
 
-The server requires pre-compiled `.litertlm` models placed in the `models/` directory.
+Place your compiled `.litertlm` models in the `./models/` directory:
 
-1. Create the `models/` folder:
+```bash
+mkdir -p models
+```
 
-   ```bash
-   mkdir -p models
-   ```
+The server expects the following filenames by default:
+- **Generative Chat Model**: `models/gemma-4-E2B-it.litertlm`
+- **Embedding Model**: `models/embeddinggemma-2-740m.litertlm`
 
-2. Place the following files in `models/`:
-   - `models/gemma-4-E2B-it.litertlm` (Instruction chat model)
-   - `models/embeddinggemma-2-740m.litertlm` (Embedding model)
-
-> [!NOTE]
-> On the very first request to either engine, LiteRT-LM compiles hardware-optimized CPU kernels and saves them as `*.xnnpack_cache` in the `models/` directory. This initial compilation step takes a few moments, after which subsequent startups and requests run at peak execution speed.
+> LiteRT-LM models can be obtained from the Google AI Edge repository or Kaggle/HuggingFace model hubs supporting LiteRT formats.
 
 ### Running the Server
 
-Start the application with Python:
+Start the application with Uvicorn:
 
 ```bash
 python main.py
 ```
 
-Or run directly through the Uvicorn CLI for fine-grained worker and reload control:
+Or run Uvicorn directly from the command line:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 3500 --reload
 ```
 
-The server initializes and binds to `http://0.0.0.0:3500`.
-
-### Production Deployment (Systemd)
-
-To run the server as a persistent background daemon on a Linux host, create a systemd service file:
-
-```ini
-# /etc/systemd/system/gemma-rag.service
-[Unit]
-Description=Gemma RAG AI Server
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user/ai-server
-ExecStart=/home/ec2-user/ai-server/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 3500
-Restart=always
-RestartSec=5
-EnvironmentFile=/home/ec2-user/ai-server/.env
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now gemma-rag
-```
+The server will initialize the LiteRT-LM engines during startup and be ready to accept requests at `http://localhost:3500`.
 
 ---
 
@@ -257,10 +225,7 @@ sudo systemctl enable --now gemma-rag
 
 ### 1. Health Check
 
-Quickly verify that the server is alive and operational.
-
-- **Method**: `GET`
-- **Path**: `/health/`
+Verify that the server is online and operational:
 
 ```bash
 curl -X GET http://localhost:3500/health/
@@ -276,25 +241,21 @@ curl -X GET http://localhost:3500/health/
 
 ---
 
-### 2. Synchronous Chat Completion
+### 2. Synchronous Chat
 
-Send a single prompt and receive the full completion upon generation.
-
-- **Method**: `POST`
-- **Path**: `/chat/response`
-- **Header**: `Content-Type: application/json`
+Generate an instruction-following response:
 
 ```bash
 curl -X POST http://localhost:3500/chat/response \
   -H "Content-Type: application/json" \
-  -d '{"message": "Explain Retrieval-Augmented Generation in two sentences."}'
+  -d '{"message": "Explain the concept of speculative decoding in two sentences."}'
 ```
 
 **Response**:
 ```json
 {
   "status": 200,
-  "message": "Retrieval-Augmented Generation (RAG) enhances language models by fetching relevant external knowledge from an external database before generating an answer. This grounds the model's response in accurate, up-to-date facts while reducing hallucinations."
+  "message": "Speculative decoding accelerates LLM inference by using a smaller draft model to generate candidate tokens in parallel, which are then verified in one pass by the target model. This reduces execution latency without degrading output quality."
 }
 ```
 
@@ -302,206 +263,160 @@ curl -X POST http://localhost:3500/chat/response \
 
 ### 3. Real-Time Streaming Chat (WebSocket)
 
-Connect over WebSocket for token-by-token streaming, ideal for responsive web and desktop chat interfaces.
+Connect to the WebSocket endpoint `ws://localhost:3500/chat/stream` for real-time token streaming.
 
-- **URL**: `ws://localhost:3500/chat/stream`
-- **Client Transmission**: Send the query string directly as text.
-- **Server Transmission**: Streams individual JSON events containing token chunks:
-  ```json
-  {"type": "response", "content": "..."}
-  ```
-
-#### Python Streaming Client
+#### Python Client
 
 ```python
 import asyncio
-import json
 import websockets
 
-async def stream_chat(prompt: str):
+async def stream_chat():
     uri = "ws://localhost:3500/chat/stream"
     async with websockets.connect(uri) as websocket:
-        # Send text prompt
-        await websocket.send(prompt)
-        
-        # Stream response chunks
+        await websocket.send("Write a short poem about local edge computing.")
         while True:
             try:
-                raw_event = await websocket.recv()
-                event = json.loads(raw_event)
-                if event.get("type") == "response":
-                    print(event["content"], end="", flush=True)
+                chunk = await websocket.recv()
+                print(chunk, end="", flush=True)
             except websockets.exceptions.ConnectionClosed:
                 break
-    print()
+        print()
 
-if __name__ == "__main__":
-    asyncio.run(stream_chat("Write a Python function to compute Fibonacci numbers."))
+asyncio.run(stream_chat())
 ```
 
-#### Browser / JavaScript WebSocket Client
-
-```javascript
-const socket = new WebSocket('ws://localhost:3500/chat/stream');
-
-socket.addEventListener('open', () => {
-  socket.send('Summarize the benefits of on-device AI inference.');
-});
-
-socket.addEventListener('message', (event) => {
-  const data = JSON.parse(event.data);
-  if (data.type === 'response') {
-    process.stdout.write(data.content); // Or append to DOM
-  }
-});
-```
-
-#### Terminal Streaming with wscat
-
-You can also test the streaming endpoint using `wscat`:
+#### Terminal Testing with `wscat`
 
 ```bash
-npx wscat -c ws://localhost:3500/chat/stream
-# Once connected, type your prompt and press Enter:
-> Tell me a short story about an astronaut.
+# Install wscat if needed: npm install -g wscat
+wscat -c ws://localhost:3500/chat/stream
+> Tell me three facts about LiteRT.
 ```
 
 ---
 
-### 4. Dense Text Embeddings
+### 4. Vector Embeddings
 
-Generate high-dimensional vector representations for queries, document passages, or knowledge base chunks.
-
-- **Method**: `POST`
-- **Path**: `/embedding/create`
-- **Header**: `Content-Type: application/json`
+Generate dense vector embeddings for search, ranking, or clustering:
 
 ```bash
 curl -X POST http://localhost:3500/embedding/create \
   -H "Content-Type: application/json" \
-  -d '{"message": "Neural search and semantic similarity"}'
+  -d '{"message": "Retrieval Augmented Generation with ChromaDB"}'
 ```
 
 **Response**:
 ```json
 {
   "status": 200,
-  "message": [
-    0.01523,
-    -0.03841,
-    0.08192,
-    -0.00427,
-    0.04518
-  ]
+  "message": [0.0312, -0.0154, 0.0892, 0.0041, ...]
 }
 ```
 
-#### Python RAG Similarity Example
+---
 
-Compute cosine similarity between two sentences using the embedding endpoint:
+### 5. RAG Document Ingestion & Query
 
-```python
-import numpy as np
-import requests
+The server includes a complete end-to-end RAG system with automatic text chunking and persistent ChromaDB storage.
 
-def get_embedding(text: str) -> np.ndarray:
-    res = requests.post(
-        "http://localhost:3500/embedding/create",
-        json={"message": text}
-    )
-    res.raise_for_status()
-    return np.array(res.json()["message"])
+#### Step 1: Ingest Document Content
 
-# Embed query and document
-query_vec = get_embedding("How do I reset my account password?")
-doc_vec_match = get_embedding("To change your login credentials, go to Settings > Security.")
-doc_vec_unrelated = get_embedding("The recipe calls for two cups of flour and butter.")
+Ingest raw text associated with a specific user:
 
-def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+```bash
+curl -X POST http://localhost:3500/rag/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "message": "Antigravity is Google DeepMind's agentic engineering platform. It supports autonomous coding swarms, task scheduling, and customized developer tools."
+  }'
+```
 
-print(f"Similarity (Matching Doc):   {cosine_similarity(query_vec, doc_vec_match):.4f}")
-print(f"Similarity (Unrelated Doc):  {cosine_similarity(query_vec, doc_vec_unrelated):.4f}")
+**Response**:
+```json
+{
+  "status": 200,
+  "message": {
+    "ingested_chunks": 1
+  }
+}
+```
+
+#### Step 2: Query with Contextual Answer Generation
+
+Ask a question filtered to that user's knowledge base:
+
+```bash
+curl -X POST http://localhost:3500/rag/response \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "message": "What is Antigravity?"
+  }'
+```
+
+**Response**:
+```json
+{
+  "status": 200,
+  "message": {
+    "answer": "Antigravity is an agentic engineering platform developed by Google DeepMind that supports autonomous coding swarms, task scheduling, and customized developer tools.",
+    "sources": [
+      "Antigravity is Google DeepMind's agentic engineering platform. It supports autonomous coding swarms, task scheduling, and customized developer tools."
+    ]
+  }
+}
 ```
 
 ---
 
 ### Interactive API Documentation
 
-FastAPI automatically generates interactive OpenAPI documentation accessible via any web browser when the server is running:
+When the server is running, explore and test all endpoints interactively:
 
-- **Swagger UI**: [http://localhost:3500/docs](http://localhost:3500/docs) (Interactive endpoint testing)
-- **ReDoc**: [http://localhost:3500/redoc](http://localhost:3500/redoc) (Clean, structured reference documentation)
-
----
-
-## RAG Integration Workflow
-
-The following pattern illustrates how this server integrates into a complete Retrieval-Augmented Generation pipeline:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant App as RAG Application
-    participant Server as Gemma RAG AI Server
-    participant VectorDB as Vector Database (e.g. Chroma/Qdrant)
-
-    Note over App,VectorDB: Indexing Phase
-    App->>Server: POST /embedding/create (Document chunks)
-    Server-->>App: Dense Vector Embeddings
-    App->>VectorDB: Store Documents & Vector Embeddings
-
-    Note over User,Server: Query & Retrieval Phase
-    User->>App: User Question
-    App->>Server: POST /embedding/create (User Question)
-    Server-->>App: Query Vector
-    App->>VectorDB: Nearest Neighbor Vector Search (Query Vector)
-    VectorDB-->>App: Top-K Relevant Document Chunks
-
-    Note over User,Server: Grounded Generation Phase
-    App->>Server: WS /chat/stream (Context + Question Prompt)
-    Server-->>App: Streamed Response Tokens
-    App-->>User: Real-Time Rendered Answer
-```
+- **Swagger UI**: [http://localhost:3500/docs](http://localhost:3500/docs)
+- **ReDoc**: [http://localhost:3500/redoc](http://localhost:3500/redoc)
 
 ---
 
-## Configuration Reference
+## Configuration
 
-Key engine and network configurations can be customized in [`services/llm/llm_service.py`](services/llm/llm_service.py) and [`main.py`](main.py):
+Default paths, token limits, and runtime modes are configured in the source code:
 
 | Parameter | Default Value | File Location | Description |
 | :--- | :--- | :--- | :--- |
-| `max_output_tokens` | `600` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Maximum output tokens generated per conversation turn. |
-| `speculative_config.mode` | `ADAPTIVE` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | LiteRT-LM speculative decoding mode (`ADAPTIVE`, `STATIC`, or disabled). |
-| `llm_model_path` | `./models/gemma-4-E2B-it.litertlm` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Filesystem path to the primary generative model binary. |
-| `embedding_model_path` | `./models/embeddinggemma-2-740m.litertlm` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Filesystem path to the dense embedding model binary. |
-| `port` | `3500` | [`main.py`](main.py) | Network port for the FastAPI/Uvicorn server. |
-| `host` | `0.0.0.0` | [`main.py`](main.py) | Network host interface binding address. |
-| `reload` | `True` | [`main.py`](main.py) | Hot-reloading mode for development (`False` in production). |
+| `max_output_tokens` | `1200` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Maximum output tokens generated per conversation turn |
+| `speculative_config` | `ADAPTIVE` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | LiteRT-LM speculative decoding optimization mode |
+| `llm_model_path` | `./models/gemma-4-E2B-it.litertlm` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Filesystem path to generative LLM binary |
+| `embedding_model_path` | `./models/embeddinggemma-2-740m.litertlm` | [`services/llm/llm_service.py`](services/llm/llm_service.py) | Filesystem path to embedding model binary |
+| `chroma_path` | `./data/chroma` | [`services/rag/rag_service.py`](services/rag/rag_service.py) | Directory for persistent ChromaDB storage |
+| `chunk_size` | `300` | [`services/rag/rag_service.py`](services/rag/rag_service.py) | Character size per RAG document chunk |
+| `chunk_overlap` | `30` | [`services/rag/rag_service.py`](services/rag/rag_service.py) | Character overlap between consecutive chunks |
+| `host` | `0.0.0.0` | [`main.py`](main.py) | Network interface binding address |
+| `port` | `3500` | [`main.py`](main.py) | Port number for FastAPI / Uvicorn |
 
 ---
 
 ## Where Users Can Get Help
 
-- **Issue Tracker**: Report bugs, ask questions, or request new features on [GitHub Issues](https://github.com/masanthimanshu/gemma-rag/issues).
-- **Interactive Documentation**: Test and inspect endpoints directly on your running instance at `http://localhost:3500/docs`.
-- **FastAPI Documentation**: Comprehensive guidance on FastAPI routing, middleware, and deployment at [fastapi.tiangolo.com](https://fastapi.tiangolo.com/).
-- **Google LiteRT**: Learn more about Google's edge inference runtime, model compilation, and hardware optimization at [github.com/google-ai-edge/litert](https://github.com/google-ai-edge/litert).
+- **GitHub Issues**: Submit bug reports and feature requests via [GitHub Issues](https://github.com/masanthimanshu/gemma-rag/issues).
+- **FastAPI Documentation**: Reference routing, request validation, and deployment patterns at [fastapi.tiangolo.com](https://fastapi.tiangolo.com/).
+- **LiteRT-LM Guide**: Learn more about LiteRT inference runtimes and model optimizations at [github.com/google-ai-edge/litert](https://github.com/google-ai-edge/litert).
+- **ChromaDB Documentation**: Explore vector storage queries and filtering at [docs.trychroma.com](https://docs.trychroma.com/).
 
 ---
 
 ## Who Maintains and Contributes
 
-### Maintainer
+### Maintainers
 
 - **Himanshu Masant** ([@masanthimanshu](https://github.com/masanthimanshu)) — [masanthimanshu@gmail.com](mailto:masanthimanshu@gmail.com)
 
 ### Contributing
 
-We welcome contributions! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on development environment setup, branch naming conventions, commit formats, and the pull request submission process.
+Contributions, feature proposals, and bug fixes are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on our workflow, branch conventions, and pull request process.
 
 ### License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for complete terms and copyright notices.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for complete details.

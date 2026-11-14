@@ -38,7 +38,7 @@ def close_engine():
 def chat(message: str):
     init_engine()
 
-    with llm_engine.create_conversation(max_output_tokens=600) as conversation:
+    with llm_engine.create_conversation(max_output_tokens=1200) as conversation:
         response = conversation.send_message(message)
         return {"message": str(response)}
 
@@ -46,10 +46,10 @@ def chat(message: str):
 def stream_chat(message: str):
     init_engine()
 
-    with llm_engine.create_conversation(max_output_tokens=600) as conversation:
+    with llm_engine.create_conversation(max_output_tokens=1200) as conversation:
         for chunk in conversation.send_message_async(message):
             if text := str(chunk):
-                yield {"type": "response", "content": text}
+                yield text
 
 
 def embedding(message: str):
