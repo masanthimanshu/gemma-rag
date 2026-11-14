@@ -1,10 +1,24 @@
+import os
 import uuid
-import chromadb
+from qdrant_client import QdrantClient, models
 
 from services import llm
 
-client = chromadb.PersistentClient(path="./data/chroma")
-collection = client.get_or_create_collection(name="documents")
+
+COLLECTION = "documents"
+client = QdrantClient(
+    url=os.getenv("QDRANT_URL"),
+    auth=(os.getenv("QDRANT_ADMIN"), os.getenv("QDRANT_PASS"))
+)
+
+try:
+    if not client.collection_exists(COLLECTION):
+        client.create_collection(
+            COLLECTION,
+            vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
+        )
+except Exception:
+    pass
 
 
 def chunk_text(text: str, size: int = 300, overlap: int = 30):
@@ -27,40 +41,40 @@ def ingest(text: str, chat_id: str):
     if not chunks:
         return {"ingested_chunks": 0}
 
-    ids = [str(uuid.uuid4()) for _ in chunks]
-    embeddings = [list(llm.embedding(c)) for c in chunks]
-    metadatas = [{"chat_id": chat_id} for _ in chunks]
-
-    collection.add(ids=ids, documents=chunks, embeddings=embeddings, metadatas=metadatas)
+    points = [
+        models.PointStruct(
+            id=str(uuid.uuid4()),
+            vector=list(llm.embedding(c)),
+            payload={"document": c, "chat_id": chat_id},
+        )
+        for c in chunks
+    ]
+    client.upsert(COLLECTION, points=points)
     return {"ingested_chunks": len(chunks)}
 
 
-def query(message: str, chat_id: str, n_results: int = 3):
-    results = collection.query(
-        query_embeddings=[list(llm.embedding(message))],
-        n_results=n_results,
-        where={"chat_id": chat_id},
+def retrieve(message: str, chat_id: str, n_results: int = 3):
+    results = client.query_points(
+        COLLECTION,
+        query=list(llm.embedding(message)),
+        limit=n_results,
+        query_filter=models.Filter(
+            must=[models.FieldCondition(key="chat_id", match=models.MatchValue(value=chat_id))]
+        ),
     )
 
-    sources = results["documents"][0] if results["documents"] else []
+    sources = [p.payload["document"] for p in results.points] if results.points else []
     context = "\n\n".join(sources)
-
     prompt = f"Context:\n{context}\n\nQuestion: {message}\nAnswer based on context:"
-    response = llm.chat(prompt)
+    return prompt, sources
 
+
+def query(message: str, chat_id: str, n_results: int = 3):
+    prompt, sources = retrieve(message, chat_id, n_results)
+    response = llm.chat(prompt)
     return {"answer": response["message"], "sources": sources}
 
 
 def stream_query(message: str, chat_id: str, n_results: int = 3):
-    results = collection.query(
-        query_embeddings=[list(llm.embedding(message))],
-        n_results=n_results,
-        where={"chat_id": chat_id},
-    )
-
-    sources = results["documents"][0] if results["documents"] else []
-    context = "\n\n".join(sources)
-
-    prompt = f"Context:\n{context}\n\nQuestion: {message}\nAnswer based on context:"
-    for chunk in llm.stream_chat(prompt):
-        yield chunk
+    prompt, _ = retrieve(message, chat_id, n_results)
+    yield from llm.stream_chat(prompt)

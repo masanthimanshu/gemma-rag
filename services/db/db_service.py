@@ -9,7 +9,7 @@ async def init_db(document_models=None):
     global client
     client = AsyncMongoClient(os.getenv("MONGO_URI"))
     await init_beanie(
-        database=client.get_default_database(),
+        database=client.get_default_database(default="gemma_rag"),
         document_models=document_models or [],
     )
 

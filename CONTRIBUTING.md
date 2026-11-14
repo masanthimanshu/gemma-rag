@@ -22,9 +22,15 @@ Thank you for your interest in contributing to the Gemma RAG AI Server! We welco
 
 3. **Prepare Model Binaries**
 
-   Place compatible `.litertlm` models into the `models/` directory:
-   - `models/gemma-4-E2B-it.litertlm`
-   - `models/embeddinggemma-2-740m.litertlm`
+   Create the `models/` directory, navigate into it, and download the models using `hf download` (from `huggingface_hub`):
+
+   ```bash
+   mkdir -p models
+   cd models
+   hf download litert-community/embeddinggemma-2-740m-litert-lm embeddinggemma-2-740m.litertlm --local-dir "$PWD" --force-download
+   hf download litert-community/gemma-4-E2B-it-litert-lm gemma-4-E2B-it.litertlm --local-dir "$PWD" --force-download
+   cd ..
+   ```
 
 ## Branching & Commit Guidelines
 

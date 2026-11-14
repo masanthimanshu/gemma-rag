@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
+load_dotenv()
+
 from routes import api_router
 from schema import RagHistory
 from services import db, llm
-
-load_dotenv()
 
 
 @asynccontextmanager
@@ -20,7 +20,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(version="1.0.0", lifespan=lifespan)
 
+
 app.include_router(api_router)
+
 
 if __name__ == "__main__":
     import uvicorn

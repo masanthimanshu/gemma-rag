@@ -22,6 +22,13 @@ async def response(request: RagRequest):
     return {"message": result}
 
 
+@router.post("/history/{chat_id}", response_model=ResponseModel)
+async def history(chat_id: str):
+    data = RagHistory.find(RagHistory.chat_id == chat_id)
+    chats = await data.sort(+RagHistory.created_at).to_list()
+    return {"message": chats}
+
+
 @router.websocket("/stream/{chat_id}")
 async def stream(websocket: WebSocket, chat_id: str):
     await websocket.accept()
