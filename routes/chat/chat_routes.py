@@ -8,7 +8,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post("/response", response_model=ResponseModel)
 def chat(request: ChatRequest):
-    return llm.chat(request.message)
+    return llm.chat(request.message, think=request.think)
 
 
 @router.websocket("/stream")

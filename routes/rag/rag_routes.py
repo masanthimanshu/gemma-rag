@@ -13,7 +13,13 @@ def ingest(request: RagRequest):
 
 @router.post("/response", response_model=ResponseModel)
 async def response(request: RagRequest):
-    result = rag.query(request.message, request.chat_id)
+    result = rag.query(
+        request.message,
+        request.chat_id,
+        think=request.think,
+        web_search=request.web_search,
+    )
+
     await RagHistory(
         chat_id=request.chat_id,
         question=request.message,
