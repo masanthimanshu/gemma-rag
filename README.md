@@ -120,30 +120,30 @@ flowchart TD
     end
 
     subgraph Engines["Inference & Embeddings (LiteRT-LM)"]
-        LLM["LiteRT-LM Generative Engine<br/>gemma-4-E2B-it (Speculative & Thinking Config, Vision CPU)"]
-        Embed["LiteRT-LM Embedding Engine<br/>embeddinggemma-2-740m (768 Dimensions)"]
+        LLM["LiteRT-LM Generative Engine<br/>gemma-4-E2B-it - Speculative, Thinking & Vision"]
+        Embed["LiteRT-LM Embedding Engine<br/>embeddinggemma-2-740m - 768 Dimensions"]
     end
 
     subgraph Storage["Databases & External Grounding"]
-        Qdrant[("Qdrant Vector DB<br/>documents Collection (Cosine)")]
-        Mongo[("MongoDB (Beanie ODM)<br/>rag_history Collection")]
-        SearXNG["SearXNG Metasearch Engine<br/>(Automated Grounding / Fallback)"]
+        Qdrant[("Qdrant Vector DB<br/>documents Collection - Cosine")]
+        Mongo[("MongoDB Beanie ODM<br/>rag_history Collection")]
+        SearXNG["SearXNG Metasearch Engine<br/>Automated Grounding and Fallback"]
     end
 
-    Client -->|HTTP / WebSocket| Router
+    Client -->|"HTTP / WebSocket"| Router
     Router --> ChatRoute
     Router --> HealthRoute
     Router --> RagRoute
 
-    ChatRoute -->|Prepare Message / Triggers| SearXNG
+    ChatRoute -->|"Prepare Message / Triggers"| SearXNG
     ChatRoute --> LLM
-    ChatRoute -->|Save & Read History| Mongo
+    ChatRoute -->|"Save & Read History"| Mongo
 
-    RagRoute -->|Ingest / Query Embeddings| Embed
-    RagRoute -->|Vector Search & Upsert| Qdrant
-    RagRoute -.->|Low Score (< 0.6) / Trigger Fallback| SearXNG
-    RagRoute -->|Context + Prompt| LLM
-    RagRoute -->|Persist History| Mongo
+    RagRoute -->|"Ingest / Query Embeddings"| Embed
+    RagRoute -->|"Vector Search & Upsert"| Qdrant
+    RagRoute -.->|"Low Score or Trigger Fallback"| SearXNG
+    RagRoute -->|"Context + Prompt"| LLM
+    RagRoute -->|"Persist History"| Mongo
 ```
 
 ### Project Structure
