@@ -19,7 +19,7 @@ async def chat(request: ChatRequest):
     return result
 
 
-@router.post("/history/{chat_id}", response_model=ResponseModel)
+@router.get("/history/{chat_id}", response_model=ResponseModel)
 async def history(chat_id: str):
     data = RagHistory.find(RagHistory.chat_id == chat_id)
     chats = await data.sort(+RagHistory.created_at).to_list()
