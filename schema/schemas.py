@@ -8,7 +8,6 @@ class ChatRequest(BaseModel):
     chat_id: str
     message: str
     think: bool = False
-    web_search: bool = False
     image: bytes | None = None
 
 

@@ -1,14 +1,15 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from schema import ChatRequest, RagHistory, ResponseModel
-from services import llm
+from services import llm, search
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 @router.post("/response", response_model=ResponseModel)
 async def chat(request: ChatRequest):
-    result = llm.chat(request.message, image=request.image, think=request.think)
+    message = search.prepare_message(request.message)
+    result = llm.chat(message, image=request.image, think=request.think)
 
     await RagHistory(
         chat_id=request.chat_id,
@@ -37,8 +38,9 @@ async def stream(websocket: WebSocket, chat_id: str):
             except Exception:
                 req = ChatRequest(message=raw, chat_id=chat_id)
 
+            message = search.prepare_message(req.message)
             response = ""
-            for chunk in llm.stream_chat(req.message, image=req.image, think=req.think):
+            for chunk in llm.stream_chat(message, image=req.image, think=req.think):
                 response += chunk
                 await websocket.send_text(chunk)
 

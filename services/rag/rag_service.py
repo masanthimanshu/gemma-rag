@@ -43,7 +43,7 @@ def ingest(text: str, chat_id: str):
     return {"ingested_chunks": len(chunks)}
 
 
-def retrieve(message: str, chat_id: str, n_results: int = 3, web_search: bool = False):
+def retrieve(message: str, chat_id: str, n_results: int = 3):
     results = client.query_points(
         COLLECTION,
         query=list(llm.embedding(message)),
@@ -53,8 +53,10 @@ def retrieve(message: str, chat_id: str, n_results: int = 3, web_search: bool = 
         ),
     )
 
-    local = [p.payload["document"] for p in results.points] if results.points else []
-    web = search.search(message, limit=3) if web_search else []
+    points = results.points if results.points else []
+    local = [p.payload["document"] for p in points]
+    do_web = search.should_search_web(message, points)
+    web = search.search(message, limit=3) if do_web else []
 
     context = []
     if local:
@@ -65,15 +67,15 @@ def retrieve(message: str, chat_id: str, n_results: int = 3, web_search: bool = 
         ))
 
     prompt = f"Context:\n{'\n\n'.join(context)}\n\nQuestion: {message}\nAnswer based on context:"
-    sources = {"local": local, "web": web} if web_search else local
+    sources = {"local": local, "web": web} if do_web else local
     return prompt, sources
 
 
-def query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, web_search: bool = False, think: bool = False):
-    prompt, sources = retrieve(message, chat_id, n_results, web_search)
+def query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, think: bool = False):
+    prompt, sources = retrieve(message, chat_id, n_results)
     return {"answer": llm.chat(prompt, image=image, think=think)["message"], "sources": sources}
 
 
-def stream_query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, web_search: bool = False, think: bool = False):
-    prompt, _ = retrieve(message, chat_id, n_results, web_search)
+def stream_query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, think: bool = False):
+    prompt, _ = retrieve(message, chat_id, n_results)
     yield from llm.stream_chat(prompt, image=image, think=think)

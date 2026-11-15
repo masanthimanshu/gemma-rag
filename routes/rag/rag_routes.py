@@ -18,7 +18,6 @@ async def response(request: ChatRequest):
         request.chat_id,
         image=request.image,
         think=request.think,
-        web_search=request.web_search,
     )
 
     await RagHistory(
@@ -47,7 +46,6 @@ async def stream(websocket: WebSocket, chat_id: str):
                 chat_id,
                 image=req.image,
                 think=req.think,
-                web_search=req.web_search,
             ):
                 response += chunk
                 await websocket.send_text(chunk)
