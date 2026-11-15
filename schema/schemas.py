@@ -17,6 +17,7 @@ class ResponseModel(BaseModel):
 
 
 class IngestionRequest(BaseModel):
+    chat_id: str
     message: str
 
 

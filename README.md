@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A high-performance, self-hosted AI inference, embedding, and Retrieval-Augmented Generation (RAG) server powered by **FastAPI**, Google's **LiteRT-LM** (LiteRT for Language Models) runtime, **Qdrant** vector database, **MongoDB** (via Beanie ODM), and optional **SearXNG** web search grounding. Engineered for low-latency CPU and edge execution, complete on-premises data sovereignty, and real-time bidirectional streaming.
+A high-performance, self-hosted AI inference and Retrieval-Augmented Generation (RAG) server powered by **FastAPI**, Google's **LiteRT-LM** (LiteRT for Language Models) runtime, **Qdrant** vector database, **MongoDB** (via Beanie ODM), and automated **SearXNG** web search grounding. Engineered for low-latency CPU and edge execution, complete on-premises data privacy, multimodal understanding, and real-time bidirectional streaming.
 
 ---
 
@@ -32,12 +32,12 @@ A high-performance, self-hosted AI inference, embedding, and Retrieval-Augmented
   - [Usage Examples](#usage-examples)
     - [1. Health Check](#1-health-check)
     - [2. Synchronous Chat & Reasoning](#2-synchronous-chat--reasoning)
-    - [3. Real-Time Streaming Chat (WebSocket)](#3-real-time-streaming-chat-websocket)
-    - [4. Dense Vector Embeddings](#4-dense-vector-embeddings)
-    - [5. RAG Document Ingestion](#5-rag-document-ingestion)
-    - [6. RAG Contextual Response (Local & Web Search)](#6-rag-contextual-response-local--web-search)
-    - [7. RAG Real-Time Streaming Chat (WebSocket)](#7-rag-real-time-streaming-chat-websocket)
-    - [8. RAG Chat History Retrieval](#8-rag-chat-history-retrieval)
+    - [3. Multimodal Visual Reasoning](#3-multimodal-visual-reasoning)
+    - [4. Real-Time Streaming Chat (WebSocket)](#4-real-time-streaming-chat-websocket)
+    - [5. Document Ingestion for RAG](#5-document-ingestion-for-rag)
+    - [6. Grounded RAG Query with Automated Web Search](#6-grounded-rag-query-with-automated-web-search)
+    - [7. Real-Time Streaming RAG (WebSocket)](#7-real-time-streaming-rag-websocket)
+    - [8. Chat & RAG History Retrieval](#8-chat--rag-history-retrieval)
   - [Interactive API Documentation](#interactive-api-documentation)
   - [Configuration Reference](#configuration-reference)
 - [Where Users Can Get Help](#where-users-can-get-help)
@@ -54,28 +54,28 @@ The **Gemma RAG AI Server** provides an air-gapped, zero-cloud-dependency micros
 
 ### Core Capabilities
 
-1. **Instruction & Conversational Inference (`gemma-4-E2B-it`)**:
-   - Executes instruction-tuned conversational turns and multi-step reasoning.
+1. **Local Instruction & Conversational Inference (`gemma-4-E2B-it`)**:
+   - Executes instruction-tuned conversational turns and multi-step reasoning locally on CPU.
    - Accelerates generation velocity using **adaptive speculative decoding** (`SpeculativeDecodingMode.ADAPTIVE`) with Multi-Token Prediction (MTP) drafting.
-   - Supports deep reasoning mode with a dedicated **thinking token budget** (`ThinkingConfig(thinking_token_budget=300)`).
-   - Delivers both synchronous batch responses (`POST /chat/response`) and low-latency token-by-token streaming (`ws://.../chat/stream`).
+   - Supports deep analytical reasoning with a dedicated **thinking token budget** (`ThinkingConfig(thinking_token_budget=300)`).
+   - Delivers both synchronous batch responses (`POST /chat/response`) and low-latency token-by-token streaming (`ws://.../chat/stream/{chat_id}`).
 
-2. **Dense Vector Embeddings (`embeddinggemma-2-740m`)**:
-   - Computes high-quality 768-dimensional geometric dense embeddings (`POST /embedding/create`) directly on CPU.
-   - Powers local similarity search, semantic document retrieval, and downstream classification pipelines.
+2. **Multimodal Vision & Text Understanding**:
+   - Natively processes images alongside text prompts on CPU using LiteRT's vision backend (`vision_backend=litert_lm.Backend.CPU()`).
+   - Enables visual question answering, document inspection, and diagram reasoning across both standard chat and RAG workflows.
 
 3. **Multi-Tenant Retrieval-Augmented Generation (RAG)**:
-   - Chunks incoming document passages with overlap and indexes them into **Qdrant** with cosine similarity distance (`POST /rag/ingest`).
-   - Partitions knowledge bases by `chat_id` metadata filtering, strictly isolating private context across sessions or users.
+   - Chunks incoming documents with sliding-window overlap and computes 768-dimensional dense geometric vectors via `embeddinggemma-2-740m` (`POST /rag/ingest`).
+   - Indexes embeddings into **Qdrant** with cosine similarity distance, strictly partitioned by `chat_id` metadata filtering to isolate private context across sessions or users.
    - Performs semantic vector search, injects relevant context into the LLM prompt, and synthesizes grounded answers with source citations (`POST /rag/response` and `ws://.../rag/stream/{chat_id}`).
 
-4. **Live Web Search Grounding (SearXNG)**:
-   - Optionally enhances RAG retrieval with real-time web results via a self-hosted or private **SearXNG** metasearch engine.
-   - Seamlessly blends internal proprietary documents with fresh external web sources into a single unified context prompt.
+4. **Automated Hybrid Grounding (Qdrant + SearXNG)**:
+   - Intelligently detects when local context is insufficient (retrieval score threshold < 0.6 or empty results) or when time-sensitive triggers are detected (`latest`, `news`, `current`, `recent`, `weather`, `price`).
+   - Automatically falls back to or augments local documents with live web search results from a self-hosted or private **SearXNG** instance.
 
 5. **Persistent Audit & Conversation History**:
-   - Automatically records queries, generated responses, and UTC timestamps to **MongoDB** using the **Beanie** asynchronous ODM.
-   - Exposes historical queries and responses chronologically by session (`POST /rag/history/{chat_id}`).
+   - Automatically records user queries, generated responses, and UTC timestamps to **MongoDB** using the **Beanie** asynchronous ODM.
+   - Exposes historical queries and responses chronologically by session (`GET /chat/history/{chat_id}`).
 
 ---
 
@@ -85,14 +85,15 @@ Building production-ready LLM applications often forces painful compromises betw
 
 ### Key Features
 
-- **100% On-Device Privacy & Data Sovereignty**: Operates entirely offline with zero external network requests during inference. Complies naturally with strict data protection requirements (e.g., HIPAA, GDPR, confidential IP, and air-gapped environments).
+- **100% On-Device Privacy & Data Sovereignty**: Operates entirely offline with zero external telemetry during inference. Complies naturally with strict data protection requirements (e.g., HIPAA, GDPR, confidential IP, and air-gapped environments).
 - **CPU-Optimized via Speculative Decoding**: Uses LiteRT-LM's adaptive speculative decoding mode to maximize token generation throughput on commodity x86_64 and aarch64 CPUs without requiring dedicated GPUs.
 - **Deep Reasoning with Thinking Tokens**: Toggle extended thinking (`think: true`) on chat and RAG endpoints to activate a 300-token internal reasoning budget for complex analytical tasks.
-- **Hybrid Grounding (Vector Search + Live Web Search)**: Combine local document retrieval from Qdrant with optional real-time metasearch via SearXNG for timely, up-to-date responses.
+- **Multimodal Visual Reasoning**: Send image bytes along with prompts to perform visual analysis directly on CPU.
+- **Automated Web Search Grounding**: Intelligent fallback to SearXNG metasearch ensures up-to-date answers without requiring manual endpoint parameters.
 - **Enterprise-Grade Vector Storage with Qdrant**: Leverages Qdrant for persistent, high-dimensional vector search with robust metadata filtering.
 - **Persistent Session State with MongoDB & Beanie**: Seamlessly logs conversation history and RAG interactions to MongoDB for auditing, analytics, and session recovery.
 - **Multi-Tenant Isolation**: Enforces query filters by `chat_id` so multiple users, sessions, or agents can share the same Qdrant collection without data bleeding.
-- **Dual WebSocket Streaming Endpoints**: Provides real-time streaming for both raw chat (`/chat/stream`) and grounded RAG responses (`/rag/stream/{chat_id}`).
+- **Dual WebSocket Streaming Endpoints**: Provides real-time streaming for both conversational chat (`/chat/stream/{chat_id}`) and grounded RAG responses (`/rag/stream/{chat_id}`).
 - **Containerized & Reverse Proxy Ready**: Includes preconfigured [Dockerfile](Dockerfile) and [compose.yaml](compose.yaml) with Nginx Proxy Manager integration for SSL certificate management and reverse proxying.
 
 ### Architectural Benefits
@@ -113,35 +114,36 @@ flowchart TD
 
     subgraph FastAPI["FastAPI Application (Port 3500)"]
         Router["API Router"]
-        ChatRoute["Chat Routes<br/>/chat/response & /chat/stream"]
-        EmbedRoute["Embedding Routes<br/>/embedding/create"]
-        RagRoute["RAG Routes<br/>/rag/ingest, /rag/response,<br/>/rag/stream/{chat_id}, /rag/history/{chat_id}"]
+        ChatRoute["Chat Routes<br/>/chat/response & /chat/stream/{chat_id}<br/>/chat/history/{chat_id}"]
+        HealthRoute["Health Routes<br/>/health/"]
+        RagRoute["RAG Routes<br/>/rag/ingest, /rag/response,<br/>/rag/stream/{chat_id}"]
     end
 
     subgraph Engines["Inference & Embeddings (LiteRT-LM)"]
-        LLM["LiteRT-LM Generative Engine<br/>gemma-4-E2B-it (Speculative & Thinking Config)"]
+        LLM["LiteRT-LM Generative Engine<br/>gemma-4-E2B-it (Speculative & Thinking Config, Vision CPU)"]
         Embed["LiteRT-LM Embedding Engine<br/>embeddinggemma-2-740m (768 Dimensions)"]
     end
 
     subgraph Storage["Databases & External Grounding"]
         Qdrant[("Qdrant Vector DB<br/>documents Collection (Cosine)")]
         Mongo[("MongoDB (Beanie ODM)<br/>rag_history Collection")]
-        SearXNG["SearXNG Metasearch Engine<br/>(Optional Live Web Grounding)"]
+        SearXNG["SearXNG Metasearch Engine<br/>(Automated Grounding / Fallback)"]
     end
 
     Client -->|HTTP / WebSocket| Router
     Router --> ChatRoute
-    Router --> EmbedRoute
+    Router --> HealthRoute
     Router --> RagRoute
 
+    ChatRoute -->|Prepare Message / Triggers| SearXNG
     ChatRoute --> LLM
-    EmbedRoute --> Embed
+    ChatRoute -->|Save & Read History| Mongo
 
     RagRoute -->|Ingest / Query Embeddings| Embed
     RagRoute -->|Vector Search & Upsert| Qdrant
-    RagRoute -.->|Web Search (Optional)| SearXNG
+    RagRoute -.->|Low Score (< 0.6) / Trigger Fallback| SearXNG
     RagRoute -->|Context + Prompt| LLM
-    RagRoute -->|Persist & Read History| Mongo
+    RagRoute -->|Persist History| Mongo
 ```
 
 ### Project Structure
@@ -158,18 +160,16 @@ flowchart TD
 ├── requirements.txt         # Project dependencies
 ├── main.py                  # Server entrypoint and lifespan manager
 ├── models/                  # LiteRT-LM binary model storage
-│   ├── gemma-4-E2B-it.litertlm              # Generative chat model
+│   ├── gemma-4-E2B-it.litertlm              # Generative chat and vision model
 │   └── embeddinggemma-2-740m.litertlm      # Dense embedding model
 ├── routes/                  # API endpoint controllers
 │   ├── __init__.py          # Router aggregation
 │   ├── chat/
-│   │   └── chat_routes.py   # HTTP & WebSocket chat handlers
-│   ├── embedding/
-│   │   └── embedding_routes.py # Text embedding handler
+│   │   └── chat_routes.py   # HTTP & WebSocket chat and history handlers
 │   ├── health/
 │   │   └── health_routes.py # Health check probe
 │   └── rag/
-│       └── rag_routes.py    # RAG ingestion, query, stream & history
+│       └── rag_routes.py    # RAG ingestion, query, and stream handlers
 ├── schema/                  # Pydantic schemas and Beanie documents
 │   ├── __init__.py
 │   └── schemas.py           # Request, response, and document models
@@ -182,7 +182,7 @@ flowchart TD
     ├── rag/
     │   └── rag_service.py   # Chunking, Qdrant search & context retrieval
     └── search/
-        └── search_service.py # SearXNG web search client
+        └── search_service.py # SearXNG automated web search client
 ```
 
 ---
@@ -198,7 +198,7 @@ flowchart TD
 - **Databases & Services**:
   - Running **Qdrant** instance (local Docker container, cloud instance, or remote service)
   - Running **MongoDB** instance (local instance or MongoDB Atlas)
-  - *(Optional)* Running **SearXNG** instance for web-grounded RAG
+  - *(Optional)* Running **SearXNG** instance for automated web search grounding
 
 ### Environment Configuration
 
@@ -219,7 +219,7 @@ QDRANT_URL=http://localhost:6333
 QDRANT_USER=
 QDRANT_PASS=
 
-# SearXNG Web Search Engine (Optional, for web-grounded RAG)
+# SearXNG Web Search Engine (Optional, for automated web-grounded RAG)
 SEARXNG_URL=https://searxng.example.com/search
 SEARXNG_USER=
 SEARXNG_PASS=
@@ -284,7 +284,7 @@ cd models
 # Download the dense embedding model
 hf download litert-community/embeddinggemma-2-740m-litert-lm embeddinggemma-2-740m.litertlm --local-dir "$PWD" --force-download
 
-# Download the generative instruction chat model
+# Download the generative instruction and vision model
 hf download litert-community/gemma-4-E2B-it-litert-lm gemma-4-E2B-it.litertlm --local-dir "$PWD" --force-download
 
 # Return to the project root
@@ -294,14 +294,14 @@ cd ..
 > **Note**: If the `hf` command is not available, install it via `pip install huggingface_hub`.
 
 The server expects these exact filenames in `./models/`:
-- **Generative Chat Model**: `models/gemma-4-E2B-it.litertlm`
+- **Generative Chat & Vision Model**: `models/gemma-4-E2B-it.litertlm`
 - **Embedding Model**: `models/embeddinggemma-2-740m.litertlm`
 
 ---
 
 ### Running the Server
 
-Start the server using `main.py`:
+Start the server using [main.py](main.py):
 
 ```bash
 python main.py
@@ -315,7 +315,7 @@ uvicorn main:app --host 0.0.0.0 --port 3500 --reload
 
 During startup, the server automatically:
 1. Connects to MongoDB and initializes Beanie ODM with the `RagHistory` document model.
-2. Initializes the LiteRT-LM generative and embedding engines with adaptive speculative decoding.
+2. Initializes the LiteRT-LM generative and embedding engines with adaptive speculative decoding and CPU vision backend.
 3. Verifies or creates the Qdrant `documents` collection (768 dimensions, cosine distance).
 
 The service is available at `http://localhost:3500`.
@@ -350,7 +350,10 @@ Generate a direct instruction-following response using `POST /chat/response`:
 ```bash
 curl -X POST http://localhost:3500/chat/response \
   -H "Content-Type: application/json" \
-  -d '{"message": "Explain speculative decoding in two concise sentences."}'
+  -d '{
+    "chat_id": "session_alpha",
+    "message": "Explain speculative decoding in two concise sentences."
+  }'
 ```
 
 **Response**:
@@ -368,6 +371,7 @@ Enable reasoning mode with a 300-token thinking budget to analyze complex proble
 curl -X POST http://localhost:3500/chat/response \
   -H "Content-Type: application/json" \
   -d '{
+    "chat_id": "session_alpha",
     "message": "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?",
     "think": true
   }'
@@ -375,19 +379,46 @@ curl -X POST http://localhost:3500/chat/response \
 
 ---
 
-#### 3. Real-Time Streaming Chat (WebSocket)
+#### 3. Multimodal Visual Reasoning
 
-Connect to `ws://localhost:3500/chat/stream` for real-time token streaming.
+Pass base64-encoded image bytes in the `image` field to perform visual question answering:
+
+```python
+import base64
+import httpx
+
+with open("diagram.png", "rb") as f:
+    img_bytes = f.read()
+
+payload = {
+    "chat_id": "session_vision",
+    "message": "Describe the architecture shown in this diagram.",
+    "image": base64.b64encode(img_bytes).decode("utf-8"),
+    "think": False
+}
+
+response = httpx.post("http://localhost:3500/chat/response", json=payload)
+print(response.json())
+```
+
+---
+
+#### 4. Real-Time Streaming Chat (WebSocket)
+
+Connect to `ws://localhost:3500/chat/stream/{chat_id}` for real-time token streaming. Complete conversations are automatically persisted to MongoDB.
 
 **Python Client**:
 ```python
 import asyncio
+import json
 import websockets
 
 async def stream_chat():
-    uri = "ws://localhost:3500/chat/stream"
+    chat_id = "session_alpha"
+    uri = f"ws://localhost:3500/chat/stream/{chat_id}"
     async with websockets.connect(uri) as websocket:
-        await websocket.send("Explain the benefits of on-device AI inference.")
+        request = json.dumps({"chat_id": chat_id, "message": "Explain the benefits of on-device AI inference."})
+        await websocket.send(request)
         while True:
             try:
                 chunk = await websocket.recv()
@@ -402,33 +433,13 @@ asyncio.run(stream_chat())
 **CLI Testing with `wscat`**:
 ```bash
 # Install wscat: npm install -g wscat
-wscat -c ws://localhost:3500/chat/stream
-> Tell me three facts about Google Gemma models.
+wscat -c ws://localhost:3500/chat/stream/session_alpha
+> {"chat_id": "session_alpha", "message": "Tell me three facts about Google Gemma models."}
 ```
 
 ---
 
-#### 4. Dense Vector Embeddings
-
-Generate 768-dimensional geometric embeddings for text passages:
-
-```bash
-curl -X POST http://localhost:3500/embedding/create \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Retrieval Augmented Generation with Qdrant and Gemma"}'
-```
-
-**Response**:
-```json
-{
-  "status": 200,
-  "message": [0.03124, -0.01542, 0.08921, 0.00412, 0.07185, -0.02891]
-}
-```
-
----
-
-#### 5. RAG Document Ingestion
+#### 5. Document Ingestion for RAG
 
 Chunk and index document passages into Qdrant partitioned by `chat_id`:
 
@@ -437,7 +448,7 @@ curl -X POST http://localhost:3500/rag/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "chat_id": "session_alpha",
-    "message": "Antigravity is Google DeepMind's agentic engineering platform. It supports autonomous coding swarms, task scheduling, background automation, and specialized developer skills."
+    "message": "Antigravity is Google DeepMind'\''s agentic engineering platform. It supports autonomous coding swarms, task scheduling, background automation, and specialized developer skills."
   }'
 ```
 
@@ -453,10 +464,9 @@ curl -X POST http://localhost:3500/rag/ingest \
 
 ---
 
-#### 6. RAG Contextual Response (Local & Web Search)
+#### 6. Grounded RAG Query with Automated Web Search
 
-##### Local Document Retrieval
-Ask questions grounded strictly in the ingested context of the matching `chat_id`. The response is automatically saved to MongoDB:
+Ask questions grounded in the ingested documents for a specific `chat_id`. The server automatically checks retrieval confidence: if local document similarity is low (< 0.6) or temporal triggers are detected (`latest`, `recent`, etc.), it automatically augments context with SearXNG web search:
 
 ```bash
 curl -X POST http://localhost:3500/rag/response \
@@ -480,26 +490,13 @@ curl -X POST http://localhost:3500/rag/response \
 }
 ```
 
-##### Hybrid Retrieval with Live Web Search (`web_search: true`)
-Set `web_search: true` to augment local documents with real-time web search results from SearXNG:
+When web search is automatically triggered, sources include both local chunks and web citations:
 
-```bash
-curl -X POST http://localhost:3500/rag/response \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chat_id": "session_alpha",
-    "message": "What are the latest developments in Google LiteRT-LM?",
-    "web_search": true,
-    "think": true
-  }'
-```
-
-**Response**:
 ```json
 {
   "status": 200,
   "message": {
-    "answer": "LiteRT-LM now supports adaptive speculative decoding with MTP drafting and integrated thinking budgets for fast local inference...",
+    "answer": "LiteRT-LM supports adaptive speculative decoding and on-device inference...",
     "sources": {
       "local": [],
       "web": [
@@ -516,19 +513,21 @@ curl -X POST http://localhost:3500/rag/response \
 
 ---
 
-#### 7. RAG Real-Time Streaming Chat (WebSocket)
+#### 7. Real-Time Streaming RAG (WebSocket)
 
-Stream RAG answers in real time over WebSocket at `ws://localhost:3500/rag/stream/{chat_id}`. When generation completes, the question and full answer are automatically stored in MongoDB:
+Stream RAG answers in real time over WebSocket at `ws://localhost:3500/rag/stream/{chat_id}`. Once generation finishes, the question and full answer are automatically saved to MongoDB:
 
 ```python
 import asyncio
+import json
 import websockets
 
 async def stream_rag():
     chat_id = "session_alpha"
     uri = f"ws://localhost:3500/rag/stream/{chat_id}"
     async with websockets.connect(uri) as websocket:
-        await websocket.send("What is Antigravity?")
+        request = json.dumps({"chat_id": chat_id, "message": "What is Antigravity?"})
+        await websocket.send(request)
         while True:
             try:
                 chunk = await websocket.recv()
@@ -542,13 +541,12 @@ asyncio.run(stream_rag())
 
 ---
 
-#### 8. RAG Chat History Retrieval
+#### 8. Chat & RAG History Retrieval
 
 Retrieve historical Q&A interactions for a given `chat_id` from MongoDB, ordered chronologically:
 
 ```bash
-curl -X POST http://localhost:3500/rag/history/session_alpha \
-  -H "Content-Type: application/json"
+curl -X GET http://localhost:3500/chat/history/session_alpha
 ```
 
 **Response**:
@@ -599,13 +597,15 @@ When the server is running, explore and test the OpenAPI specifications directly
 | `max_output_tokens` | `1200` | [services/llm/llm_service.py](services/llm/llm_service.py) | Maximum output tokens generated per turn |
 | `thinking_token_budget` | `300` | [services/llm/llm_service.py](services/llm/llm_service.py) | Token budget for reasoning when `think=True` |
 | `speculative_config` | `ADAPTIVE` | [services/llm/llm_service.py](services/llm/llm_service.py) | LiteRT-LM speculative decoding mode |
-| `llm_model_path` | `./models/gemma-4-E2B-it.litertlm` | [services/llm/llm_service.py](services/llm/llm_service.py) | Generative chat model binary path |
+| `vision_backend` | `CPU()` | [services/llm/llm_service.py](services/llm/llm_service.py) | LiteRT-LM vision processing backend |
+| `llm_model_path` | `./models/gemma-4-E2B-it.litertlm` | [services/llm/llm_service.py](services/llm/llm_service.py) | Generative chat and vision model binary path |
 | `embedding_model_path` | `./models/embeddinggemma-2-740m.litertlm` | [services/llm/llm_service.py](services/llm/llm_service.py) | Dense embedding model binary path |
 | `chunk_size` | `300` characters | [services/rag/rag_service.py](services/rag/rag_service.py) | Maximum character length per text chunk |
 | `chunk_overlap` | `30` characters | [services/rag/rag_service.py](services/rag/rag_service.py) | Character overlap between consecutive chunks |
 | `vector_size` | `768` | [services/rag/rag_service.py](services/rag/rag_service.py) | Dimensionality of `embeddinggemma-2-740m` |
 | `distance_metric` | `COSINE` | [services/rag/rag_service.py](services/rag/rag_service.py) | Qdrant vector similarity metric |
-| `web_search_limit` | `3` results | [services/rag/rag_service.py](services/rag/rag_service.py) | Max external results fetched when `web_search=True` |
+| `retrieval_threshold` | `0.6` | [services/search/search_service.py](services/search/search_service.py) | Similarity threshold below which web search triggers |
+| `web_search_limit` | `3` results | [services/rag/rag_service.py](services/rag/rag_service.py) | Max external results fetched per search |
 | `host` | `0.0.0.0` | [main.py](main.py) | Host interface network binding |
 | `port` | `3500` | [main.py](main.py) | Web server port |
 
