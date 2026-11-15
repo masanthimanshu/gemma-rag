@@ -1,3 +1,3 @@
-from .schemas import ChatRequest, RagHistory, RagRequest, ResponseModel
+from .schemas import ChatRequest, RagHistory, ResponseModel
 
-__all__ = ["ChatRequest", "RagHistory", "RagRequest", "ResponseModel"]
+__all__ = ["ChatRequest", "RagHistory", "ResponseModel"]

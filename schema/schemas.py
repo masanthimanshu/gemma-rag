@@ -5,15 +5,11 @@ from datetime import datetime, timezone
 
 
 class ChatRequest(BaseModel):
-    message: str
-    think: bool = False
-
-
-class RagRequest(BaseModel):
     chat_id: str
     message: str
     think: bool = False
     web_search: bool = False
+    image: bytes | None = None
 
 
 class ResponseModel(BaseModel):

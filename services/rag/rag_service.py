@@ -69,11 +69,11 @@ def retrieve(message: str, chat_id: str, n_results: int = 3, web_search: bool = 
     return prompt, sources
 
 
-def query(message: str, chat_id: str, n_results: int = 3, web_search: bool = False, think: bool = False):
+def query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, web_search: bool = False, think: bool = False):
     prompt, sources = retrieve(message, chat_id, n_results, web_search)
-    return {"answer": llm.chat(prompt, think=think)["message"], "sources": sources}
+    return {"answer": llm.chat(prompt, image=image, think=think)["message"], "sources": sources}
 
 
-def stream_query(message: str, chat_id: str, n_results: int = 3, web_search: bool = False, think: bool = False):
+def stream_query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, web_search: bool = False, think: bool = False):
     prompt, _ = retrieve(message, chat_id, n_results, web_search)
-    yield from llm.stream_chat(prompt, think=think)
+    yield from llm.stream_chat(prompt, image=image, think=think)

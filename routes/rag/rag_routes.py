@@ -1,21 +1,22 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from schema import RagHistory, RagRequest, ResponseModel
+from schema import ChatRequest, RagHistory, ResponseModel
 from services import rag
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
 @router.post("/ingest", response_model=ResponseModel)
-def ingest(request: RagRequest):
+def ingest(request: ChatRequest):
     return {"message": rag.ingest(request.message, request.chat_id)}
 
 
 @router.post("/response", response_model=ResponseModel)
-async def response(request: RagRequest):
+async def response(request: ChatRequest):
     result = rag.query(
         request.message,
         request.chat_id,
+        image=request.image,
         think=request.think,
         web_search=request.web_search,
     )
@@ -25,14 +26,8 @@ async def response(request: RagRequest):
         question=request.message,
         response=result["answer"],
     ).insert()
+
     return {"message": result}
-
-
-@router.post("/history/{chat_id}", response_model=ResponseModel)
-async def history(chat_id: str):
-    data = RagHistory.find(RagHistory.chat_id == chat_id)
-    chats = await data.sort(+RagHistory.created_at).to_list()
-    return {"message": chats}
 
 
 @router.websocket("/stream/{chat_id}")
@@ -40,15 +35,24 @@ async def stream(websocket: WebSocket, chat_id: str):
     await websocket.accept()
     try:
         while True:
-            message = await websocket.receive_text()
-            full_response = []
+            raw = await websocket.receive_text()
+            try:
+                req = ChatRequest.model_validate_json(raw)
+            except Exception:
+                req = ChatRequest(message=raw, chat_id=chat_id)
 
-            for chunk in rag.stream_query(message, chat_id):
-                full_response.append(chunk)
+            response = ""
+            for chunk in rag.stream_query(
+                req.message,
+                chat_id,
+                image=req.image,
+                think=req.think,
+                web_search=req.web_search,
+            ):
+                response += chunk
                 await websocket.send_text(chunk)
 
-            doc = RagHistory(chat_id=chat_id, question=message,response="".join(full_response))
-            await doc.insert()
+            await RagHistory(chat_id=chat_id, question=req.message, response=response).insert()
 
     except WebSocketDisconnect:
         pass
