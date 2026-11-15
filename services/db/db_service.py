@@ -7,7 +7,14 @@ client = None
 
 async def init_db(document_models=None):
     global client
-    client = AsyncMongoClient(os.getenv("MONGO_URI"))
+
+    client = AsyncMongoClient(
+        os.getenv("MONGO_URI"),
+        directConnection=True,
+        authSource="admin",
+        tls=True
+    )
+
     await init_beanie(
         database=client.get_default_database(default="gemma_rag"),
         document_models=document_models or [],

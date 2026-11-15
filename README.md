@@ -5,41 +5,41 @@
 [![LiteRT-LM](https://img.shields.io/badge/LiteRT--LM-0.19.2-orange.svg)](https://github.com/google-ai-edge/litert)
 [![Qdrant](https://img.shields.io/badge/Qdrant-1.20%2B-dc2626.svg?logo=qdrant&logoColor=white)](https://qdrant.tech/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Beanie%202.0-47A248.svg?logo=mongodb&logoColor=white)](https://beanie-odm.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](compose.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A high-performance, self-hosted AI inference, embedding, and Retrieval-Augmented Generation (RAG) server powered by **FastAPI**, Google's **LiteRT-LM** (LiteRT for Language Models) runtime, **Qdrant** vector database, and **MongoDB** (via Beanie ODM). Designed for low-latency CPU and edge execution, complete on-premises data sovereignty, and real-time bidirectional streaming.
+A high-performance, self-hosted AI inference, embedding, and Retrieval-Augmented Generation (RAG) server powered by **FastAPI**, Google's **LiteRT-LM** (LiteRT for Language Models) runtime, **Qdrant** vector database, and **MongoDB** (via Beanie ODM). Engineered for low-latency CPU and edge execution, complete on-premises data sovereignty, and real-time bidirectional streaming.
 
 ---
 
 ## Table of Contents
 
 - [What the Project Does](#what-the-project-does)
+  - [Core Capabilities](#core-capabilities)
 - [Why the Project Is Useful](#why-the-project-is-useful)
   - [Key Features](#key-features)
   - [Architectural Benefits](#architectural-benefits)
-- [Architecture Overview](#architecture-overview)
   - [System Flow](#system-flow)
   - [Project Structure](#project-structure)
 - [How Users Can Get Started](#how-users-can-get-started)
   - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
   - [Environment Configuration](#environment-configuration)
+  - [Option A: Quickstart with Docker Compose](#option-a-quickstart-with-docker-compose)
+  - [Option B: Manual Local Setup](#option-b-manual-local-setup)
   - [Model Preparation](#model-preparation)
   - [Running the Server](#running-the-server)
-- [Usage Examples](#usage-examples)
-  - [1. Health Check](#1-health-check)
-  - [2. Synchronous Chat](#2-synchronous-chat)
-  - [3. Real-Time Streaming Chat (WebSocket)](#3-real-time-streaming-chat-websocket)
-  - [4. Dense Vector Embeddings](#4-dense-vector-embeddings)
-  - [5. RAG Document Ingestion](#5-rag-document-ingestion)
-  - [6. RAG Contextual Response](#6-rag-contextual-response)
-  - [7. RAG Real-Time Streaming Chat (WebSocket)](#7-rag-real-time-streaming-chat-websocket)
-  - [8. RAG Chat History Retrieval](#8-rag-chat-history-retrieval)
+  - [Usage Examples](#usage-examples)
+    - [1. Health Check](#1-health-check)
+    - [2. Synchronous Chat](#2-synchronous-chat)
+    - [3. Real-Time Streaming Chat (WebSocket)](#3-real-time-streaming-chat-websocket)
+    - [4. Dense Vector Embeddings](#4-dense-vector-embeddings)
+    - [5. RAG Document Ingestion](#5-rag-document-ingestion)
+    - [6. RAG Contextual Response](#6-rag-contextual-response)
+    - [7. RAG Real-Time Streaming Chat (WebSocket)](#7-rag-real-time-streaming-chat-websocket)
+    - [8. RAG Chat History Retrieval](#8-rag-chat-history-retrieval)
   - [Interactive API Documentation](#interactive-api-documentation)
-- [Configuration Reference](#configuration-reference)
-  - [Environment Variables](#environment-variables)
-  - [Runtime Defaults](#runtime-defaults)
+  - [Configuration Reference](#configuration-reference)
 - [Where Users Can Get Help](#where-users-can-get-help)
 - [Who Maintains and Contributes](#who-maintains-and-contributes)
   - [Maintainers](#maintainers)
@@ -52,7 +52,7 @@ A high-performance, self-hosted AI inference, embedding, and Retrieval-Augmented
 
 The **Gemma RAG AI Server** provides an air-gapped, zero-cloud-dependency microservice that hosts and serves Google's Gemma models locally on standard CPU and edge hardware without external API calls or third-party telemetry.
 
-The server bundles four core capabilities in a single unified service:
+### Core Capabilities
 
 1. **Instruction & Conversational Inference (`gemma-4-E2B-it`)**:
    - Executes instruction-tuned conversational turns and contextual reasoning.
@@ -86,7 +86,7 @@ Building production-ready LLM applications often forces painful compromises betw
 - **Persistent Session State with MongoDB & Beanie**: Seamlessly logs conversation history and RAG interactions to MongoDB for auditing, analytics, and session recovery.
 - **Multi-Tenant Isolation**: Enforces query filters by `chat_id` so multiple users, sessions, or agents can share the same Qdrant collection without data bleeding.
 - **Dual WebSocket Streaming Endpoints**: Provides real-time streaming for both raw chat (`/chat/stream`) and grounded RAG responses (`/rag/stream/{chat_id}`).
-- **Asynchronous Lifespan Management**: Manages LiteRT-LM model weights and MongoDB connection pools gracefully through FastAPI's lifespan framework.
+- **Containerized & Reverse Proxy Ready**: Includes preconfigured [Dockerfile](Dockerfile) and [compose.yaml](compose.yaml) with Nginx Proxy Manager integration for SSL certificate management and reverse proxying.
 
 ### Architectural Benefits
 
@@ -97,10 +97,6 @@ Building production-ready LLM applications often forces painful compromises betw
 | **Network Latency** | Sub-millisecond local loopback | Variable internet round-trip & queue latency |
 | **Offline Operation** | Fully supported (air-gapped ready) | Not possible |
 | **Architecture** | Unified service: LLM + Embeddings + Vector DB + History | Fragmented microservices and external SaaS integrations |
-
----
-
-## Architecture Overview
 
 ### System Flow
 
@@ -143,10 +139,13 @@ flowchart TD
 
 ```text
 .
+├── .dockerignore            # Docker build ignore patterns
 ├── .env.example             # Template for required environment variables
 ├── CONTRIBUTING.md          # Contribution instructions and commit standards
+├── Dockerfile               # Multi-stage container definition with model downloads
 ├── LICENSE                  # MIT License
 ├── README.md                # Project documentation
+├── compose.yaml             # Docker Compose spec (app + Nginx Proxy Manager)
 ├── requirements.txt         # Project dependencies
 ├── main.py                  # Server entrypoint and lifespan manager
 ├── models/                  # LiteRT-LM binary model storage
@@ -181,53 +180,81 @@ flowchart TD
 
 ### Prerequisites
 
-- **Python**: Version `3.10`, `3.11`, `3.12`, or `3.15`
-- **Operating System**: Linux (Ubuntu, Debian, Amazon Linux, RHEL), macOS, or Windows WSL2
+- **Python**: Version `3.10`, `3.11`, `3.12`, or `3.15` (for manual local setup)
+- **Docker & Docker Compose**: If running via containers
 - **Memory**: Minimum 8 GB RAM (16 GB recommended for concurrent inference and embeddings)
-- **Disk Space**: ~10 GB free space for model weights, virtual environment, and databases
+- **Disk Space**: ~10 GB free space for model weights, virtual environment, and containers
 - **Databases**:
   - Running **Qdrant** instance (local Docker container, cloud instance, or remote service)
-  - Running **MongoDB** instance (local or MongoDB Atlas)
-
-### Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/masanthimanshu/gemma-rag.git
-   cd gemma-rag
-   ```
-
-2. **Create and activate a virtual environment**:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
+  - Running **MongoDB** instance (local instance or MongoDB Atlas)
 
 ### Environment Configuration
 
-Copy the sample environment file and configure your credentials:
+Create your local `.env` configuration from the provided template:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` to match your infrastructure:
+Configure your `.env` variables:
 
 ```dotenv
 # MongoDB connection URI (e.g. local or MongoDB Atlas)
 MONGO_URI=mongodb://localhost:27017/gemma_rag
 
-# Qdrant Vector Database URL and optional authentication
+# Qdrant Vector Database URL and optional credentials
 QDRANT_URL=http://localhost:6333
 QDRANT_ADMIN=
 QDRANT_PASS=
 ```
+
+---
+
+### Option A: Quickstart with Docker Compose
+
+The repository includes a ready-to-use [compose.yaml](compose.yaml) configured with the application and **Nginx Proxy Manager** (for reverse proxying and automated SSL certificate issuance).
+
+1. **Start the stack**:
+   ```bash
+   docker compose up -d --build
+   ```
+
+2. **Access services**:
+   - **Gemma RAG API**: `http://localhost:3500`
+   - **Interactive Docs**: `http://localhost:3500/docs`
+   - **Nginx Proxy Manager Admin UI**: `http://localhost:81` (Default login: `admin@example.com` / `changeme`)
+
+3. **Stop the stack**:
+   ```bash
+   docker compose down
+   ```
+
+---
+
+### Option B: Manual Local Setup
+
+#### 1. Clone the repository
+
+```bash
+git clone https://github.com/masanthimanshu/gemma-rag.git
+cd gemma-rag
+```
+
+#### 2. Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### 3. Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
 
 ### Model Preparation
 
@@ -247,11 +274,13 @@ hf download litert-community/gemma-4-E2B-it-litert-lm gemma-4-E2B-it.litertlm --
 cd ..
 ```
 
-> **Note**: If `hf` is not installed on your system, install it via `pip install huggingface_hub`.
+> **Note**: If the `hf` command is not available, install it via `pip install huggingface_hub`.
 
 The server expects these exact filenames in `./models/`:
 - **Generative Chat Model**: `models/gemma-4-E2B-it.litertlm`
 - **Embedding Model**: `models/embeddinggemma-2-740m.litertlm`
+
+---
 
 ### Running the Server
 
@@ -268,17 +297,17 @@ uvicorn main:app --host 0.0.0.0 --port 3500 --reload
 ```
 
 During startup, the server automatically:
-1. Connects to MongoDB and initializes the Beanie ODM with the `RagHistory` schema.
+1. Connects to MongoDB and initializes Beanie ODM with the `RagHistory` document model.
 2. Initializes the LiteRT-LM generative and embedding engines with adaptive speculative decoding.
-3. Ensures the Qdrant `documents` collection exists (768 dimensions, cosine distance).
+3. Verifies or creates the Qdrant `documents` collection (768 dimensions, cosine distance).
 
-Once loaded, the service will be ready at `http://localhost:3500`.
+The service is available at `http://localhost:3500`.
 
 ---
 
-## Usage Examples
+### Usage Examples
 
-### 1. Health Check
+#### 1. Health Check
 
 Verify that the server is online and operational:
 
@@ -296,7 +325,7 @@ curl -X GET http://localhost:3500/health/
 
 ---
 
-### 2. Synchronous Chat
+#### 2. Synchronous Chat
 
 Generate an instruction-following response using `POST /chat/response`:
 
@@ -316,12 +345,11 @@ curl -X POST http://localhost:3500/chat/response \
 
 ---
 
-### 3. Real-Time Streaming Chat (WebSocket)
+#### 3. Real-Time Streaming Chat (WebSocket)
 
 Connect to `ws://localhost:3500/chat/stream` for real-time token streaming.
 
-#### Python Client
-
+**Python Client**:
 ```python
 import asyncio
 import websockets
@@ -341,17 +369,16 @@ async def stream_chat():
 asyncio.run(stream_chat())
 ```
 
-#### CLI Testing with `wscat`
-
+**CLI Testing with `wscat`**:
 ```bash
-# Install wscat if needed: npm install -g wscat
+# Install wscat: npm install -g wscat
 wscat -c ws://localhost:3500/chat/stream
 > Tell me three facts about Google Gemma models.
 ```
 
 ---
 
-### 4. Dense Vector Embeddings
+#### 4. Dense Vector Embeddings
 
 Generate 768-dimensional geometric embeddings for text passages:
 
@@ -371,7 +398,7 @@ curl -X POST http://localhost:3500/embedding/create \
 
 ---
 
-### 5. RAG Document Ingestion
+#### 5. RAG Document Ingestion
 
 Chunk and index document passages into Qdrant partitioned by `chat_id`:
 
@@ -396,9 +423,9 @@ curl -X POST http://localhost:3500/rag/ingest \
 
 ---
 
-### 6. RAG Contextual Response
+#### 6. RAG Contextual Response
 
-Ask questions grounded strictly in the ingested context of the matching `chat_id`. The response is saved to MongoDB:
+Ask questions grounded strictly in the ingested context of the matching `chat_id`. The response is automatically saved to MongoDB:
 
 ```bash
 curl -X POST http://localhost:3500/rag/response \
@@ -424,9 +451,9 @@ curl -X POST http://localhost:3500/rag/response \
 
 ---
 
-### 7. RAG Real-Time Streaming Chat (WebSocket)
+#### 7. RAG Real-Time Streaming Chat (WebSocket)
 
-Stream RAG answers in real time over WebSocket at `ws://localhost:3500/rag/stream/{chat_id}`. Once generation finishes, the complete question and answer are automatically saved to MongoDB:
+Stream RAG answers in real time over WebSocket at `ws://localhost:3500/rag/stream/{chat_id}`. When generation completes, the question and full answer are automatically stored in MongoDB:
 
 ```python
 import asyncio
@@ -450,7 +477,7 @@ asyncio.run(stream_rag())
 
 ---
 
-### 8. RAG Chat History Retrieval
+#### 8. RAG Chat History Retrieval
 
 Retrieve historical Q&A interactions for a given `chat_id` from MongoDB, ordered chronologically:
 
@@ -479,18 +506,16 @@ curl -X POST http://localhost:3500/rag/history/session_alpha \
 
 ### Interactive API Documentation
 
-When the server is running, explore and test the OpenAPI specifications directly from your browser:
+When the server is running, explore and test the OpenAPI specifications directly in your browser:
 
 - **Swagger UI**: [http://localhost:3500/docs](http://localhost:3500/docs)
 - **ReDoc**: [http://localhost:3500/redoc](http://localhost:3500/redoc)
 
 ---
 
-## Configuration Reference
+### Configuration Reference
 
-### Environment Variables
-
-Configure these settings in your `.env` file:
+#### Environment Variables
 
 | Variable | Required | Description | Example |
 | :--- | :--- | :--- | :--- |
@@ -499,9 +524,7 @@ Configure these settings in your `.env` file:
 | `QDRANT_ADMIN` | No | Username / Admin credential for Qdrant | `admin` |
 | `QDRANT_PASS` | No | Password / API key for Qdrant | `your-secret-key` |
 
-### Runtime Defaults
-
-Core parameters configured in the codebase:
+#### Runtime Defaults
 
 | Parameter | Default Value | File Location | Description |
 | :--- | :--- | :--- | :--- |
@@ -536,7 +559,7 @@ Core parameters configured in the codebase:
 
 ### Contributing
 
-Contributions, feature proposals, and bug reports are welcome! Please consult the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on our development workflow, branch naming conventions, and pull request checklist.
+Contributions, feature proposals, and bug reports are welcome! Please consult the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on development workflow, branch naming conventions, and pull request standards.
 
 ### License
 
