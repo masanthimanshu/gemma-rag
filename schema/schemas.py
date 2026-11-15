@@ -16,6 +16,10 @@ class ResponseModel(BaseModel):
     message: Any
 
 
+class IngestionRequest(BaseModel):
+    message: str
+
+
 class RagHistory(Document):
     chat_id: str
     question: str

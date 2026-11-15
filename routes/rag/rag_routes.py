@@ -1,13 +1,13 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from schema import ChatRequest, RagHistory, ResponseModel
+from schema import ChatRequest, IngestionRequest, RagHistory, ResponseModel
 from services import rag
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
 @router.post("/ingest", response_model=ResponseModel)
-def ingest(request: ChatRequest):
+def ingest(request: IngestionRequest):
     return {"message": rag.ingest(request.message, request.chat_id)}
 
 
