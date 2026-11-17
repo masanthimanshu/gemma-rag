@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from schema import ChatRequest, IngestionRequest, RagHistory, ResponseModel
@@ -7,13 +8,15 @@ router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
 @router.post("/ingest", response_model=ResponseModel)
-def ingest(request: IngestionRequest):
-    return {"message": rag.ingest(request.message, request.chat_id)}
+async def ingest(request: IngestionRequest):
+    res = await asyncio.to_thread(rag.ingest, request.message, request.chat_id)
+    return {"message": res}
 
 
 @router.post("/response", response_model=ResponseModel)
 async def response(request: ChatRequest):
-    result = rag.query(
+    result = await asyncio.to_thread(
+        rag.query,
         request.message,
         request.chat_id,
         image=request.image,
@@ -35,18 +38,9 @@ async def stream(websocket: WebSocket, chat_id: str):
     try:
         while True:
             raw = await websocket.receive_text()
-            try:
-                req = ChatRequest.model_validate_json(raw)
-            except Exception:
-                req = ChatRequest(message=raw, chat_id=chat_id)
-
+            req = ChatRequest.from_raw(raw, chat_id)
             response = ""
-            for chunk in rag.stream_query(
-                req.message,
-                chat_id,
-                image=req.image,
-                think=req.think,
-            ):
+            for chunk in rag.stream_query(req.message, chat_id, image=req.image, think=req.think):
                 response += chunk
                 await websocket.send_text(chunk)
 

@@ -1,21 +1,30 @@
 import os
 import uuid
+import logging
 from qdrant_client import QdrantClient, models
 
 from services import llm, search
 
+logger = logging.getLogger(__name__)
+
 COLLECTION = "documents"
-AUTH = (os.getenv("QDRANT_USER"), os.getenv("QDRANT_PASS"))
+user, password = os.getenv("QDRANT_USER"), os.getenv("QDRANT_PASS")
+AUTH = (user, password) if user and password else None
 client = QdrantClient(url=os.getenv("QDRANT_URL"), auth=AUTH)
 
-try:
-    if not client.collection_exists(COLLECTION):
-        client.create_collection(
-            COLLECTION,
-            vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
-        )
-except Exception:
-    pass
+
+def ensure_collection() -> None:
+    try:
+        if not client.collection_exists(COLLECTION):
+            client.create_collection(
+                COLLECTION,
+                vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
+            )
+    except Exception as e:
+        logger.warning(f"Qdrant collection '{COLLECTION}' check/create failed: {e}")
+
+
+ensure_collection()
 
 
 def chunk_text(text: str, size: int = 300, overlap: int = 30):
@@ -29,6 +38,7 @@ def chunk_text(text: str, size: int = 300, overlap: int = 30):
 
 
 def ingest(text: str, chat_id: str):
+    ensure_collection()
     chunks = chunk_text(text)
     if chunks:
         points = [
@@ -44,31 +54,34 @@ def ingest(text: str, chat_id: str):
 
 
 def retrieve(message: str, chat_id: str, n_results: int = 3):
-    results = client.query_points(
-        COLLECTION,
-        query=list(llm.embedding(message)),
-        limit=n_results,
-        query_filter=models.Filter(
-            must=[models.FieldCondition(key="chat_id", match=models.MatchValue(value=chat_id))]
-        ),
-    )
+    try:
+        results = client.query_points(
+            COLLECTION,
+            query=list(llm.embedding(message)),
+            limit=n_results,
+            query_filter=models.Filter(
+                must=[models.FieldCondition(key="chat_id", match=models.MatchValue(value=chat_id))]
+            ),
+        )
+        points = results.points or []
+    except Exception as e:
+        logger.error(f"Error querying Qdrant: {e}")
+        points = []
 
-    points = results.points if results.points else []
-    local = [p.payload["document"] for p in points]
+    local = [p.payload.get("document", "") for p in points if p.payload]
     do_web = search.should_search_web(message, points)
     web = search.search(message, limit=3) if do_web else []
 
-    context = []
+    docs = []
     if local:
-        context.append("Local Documents:\n" + "\n\n".join(local))
+        docs.append("Local Documents:\n" + "\n\n".join(local))
     if web:
-        context.append("Web Search Results:\n" + "\n\n".join(
+        docs.append("Web Search Results:\n" + "\n\n".join(
             f"{w['title']}: {w['content']} ({w['url']})" for w in web
         ))
 
-    prompt = f"Context:\n{'\n\n'.join(context)}\n\nQuestion: {message}\nAnswer based on context:"
-    sources = {"local": local, "web": web} if do_web else local
-    return prompt, sources
+    prompt = f"Context:\n{'\n\n'.join(docs)}\n\nQuestion: {message}\nAnswer based on context:"
+    return prompt, ({"local": local, "web": web} if do_web else local)
 
 
 def query(message: str, chat_id: str, image: bytes | None = None, n_results: int = 3, think: bool = False):

@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from schema import ChatRequest, RagHistory, ResponseModel
@@ -8,8 +9,8 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post("/response", response_model=ResponseModel)
 async def chat(request: ChatRequest):
-    message = search.prepare_message(request.message)
-    result = llm.chat(message, image=request.image, think=request.think)
+    message = await asyncio.to_thread(search.prepare_message, request.message)
+    result = await asyncio.to_thread(llm.chat, message, image=request.image, think=request.think)
 
     await RagHistory(
         chat_id=request.chat_id,
@@ -22,8 +23,7 @@ async def chat(request: ChatRequest):
 
 @router.get("/history/{chat_id}", response_model=ResponseModel)
 async def history(chat_id: str):
-    data = RagHistory.find(RagHistory.chat_id == chat_id)
-    chats = await data.sort(+RagHistory.created_at).to_list()
+    chats = await RagHistory.find(RagHistory.chat_id == chat_id).sort(+RagHistory.created_at).to_list()
     return {"message": chats}
 
 
@@ -33,12 +33,8 @@ async def stream(websocket: WebSocket, chat_id: str):
     try:
         while True:
             raw = await websocket.receive_text()
-            try:
-                req = ChatRequest.model_validate_json(raw)
-            except Exception:
-                req = ChatRequest(message=raw, chat_id=chat_id)
-
-            message = search.prepare_message(req.message)
+            req = ChatRequest.from_raw(raw, chat_id)
+            message = await asyncio.to_thread(search.prepare_message, req.message)
             response = ""
             for chunk in llm.stream_chat(message, image=req.image, think=req.think):
                 response += chunk
